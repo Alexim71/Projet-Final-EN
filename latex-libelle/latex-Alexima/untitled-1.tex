@@ -1,0 +1,134 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+\geometry{top=2cm, bottom=2cm, left=2.5cm, right=2.5cm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{enumitem}
+
+\title{Cahier des Charges\\Application Météorologique Web/Mobile}
+\author{Ton Nom}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Contexte et objectif du projet}
+\subsection{Présentation du projet}
+Cette application a pour but de fournir des données météorologiques en temps réel ainsi que des prévisions à des utilisateurs pour des usages variés (agriculture, tourisme, navigation, etc.). 
+Elle permettra également de consulter des données historiques et d'accéder à des alertes météorologiques importantes.
+
+\subsection{Objectifs principaux}
+Les principaux objectifs de l'application sont :
+\begin{itemize}
+    \item Afficher les prévisions météo à court et long terme.
+    \item Offrir un accès aux données météorologiques historiques.
+    \item Proposer des cartes interactives pour visualiser les prévisions.
+    \item Fournir des notifications en temps réel pour les alertes météo.
+\end{itemize}
+
+\section{Public cible}
+\subsection{Définir les utilisateurs}
+Les utilisateurs ciblés par cette application sont :
+\begin{itemize}
+    \item \textbf{Utilisateurs professionnels} : agriculteurs, pilotes, capitaines de navires, etc.
+    \item \textbf{Utilisateurs grand public} : voyageurs, passionnés de météo, etc.
+    \item \textbf{Administrateurs} : gestionnaires des données et des utilisateurs.
+\end{itemize}
+
+\section{Fonctionnalités attendues}
+\subsection{Fonctionnalités principales pour l'utilisateur}
+\begin{itemize}
+    \item Accès aux prévisions météo par localisation géographique (ville, région, pays).
+    \item Consultation des prévisions horaires et journalières.
+    \item Visualisation sur une carte (intégration avec Google Maps ou autre).
+    \item Affichage des données météo en temps réel (température, précipitations, humidité, vent, etc.).
+    \item Consultation des données historiques pour une période donnée.
+    \item Notifications push pour les alertes météo (tempêtes, orages, etc.).
+\end{itemize}
+
+\subsection{Fonctionnalités avancées}
+\begin{itemize}
+    \item Personnalisation des alertes (types d’alertes, régions spécifiques).
+    \item Utilisation de graphiques pour visualiser les tendances météo.
+    \item Partage des prévisions sur les réseaux sociaux.
+\end{itemize}
+
+\subsection{Fonctionnalités administratives}
+\begin{itemize}
+    \item Gestion des utilisateurs et des permissions.
+    \item Mise à jour des données météo via des API externes.
+\end{itemize}
+
+\section{Technologies utilisées}
+\subsection{Frontend (côté utilisateur)}
+\begin{itemize}
+    \item Web : Angular, React, ou Vue.js.
+    \item Mobile : Ionic, React Native, ou Flutter.
+\end{itemize}
+
+\subsection{Backend (côté serveur)}
+\begin{itemize}
+    \item Langage : Node.js, Python (Flask, Django), PHP (Laravel).
+    \item Base de données : MongoDB, MySQL, PostgreSQL.
+    \item API : Intégration avec des API météo (OpenWeatherMap, Météo-France, etc.).
+\end{itemize}
+
+\subsection{Infrastructure}
+\begin{itemize}
+    \item Hébergement sur le cloud (AWS, Azure, Google Cloud).
+    \item Notifications push via Firebase Cloud Messaging.
+\end{itemize}
+
+\section{Interface utilisateur (UI/UX)}
+\begin{itemize}
+    \item Design simple et intuitif.
+    \item Accès facile aux informations essentielles (température, précipitations, etc.).
+    \item Couleurs adaptées à la météo (ex. : bleu pour le ciel, gris pour les nuages, etc.).
+    \item Responsive design pour s'adapter aux écrans mobiles, tablettes, et ordinateurs.
+\end{itemize}
+
+\section{Contraintes techniques et fonctionnelles}
+\begin{itemize}
+    \item Compatibilité avec iOS, Android, et les principaux navigateurs web.
+    \item Sécurité des données utilisateurs (ex. : localisation) et confidentialité des informations personnelles.
+    \item Performance : l'application doit être rapide et fluide, même avec une connexion faible.
+\end{itemize}
+
+\section{Planification du projet}
+\subsection{Phases du projet}
+\begin{enumerate}
+    \item Analyse des besoins et spécifications détaillées.
+    \item Développement du prototype (wireframes et maquettes).
+    \item Développement frontend et backend.
+    \item Intégration des API météorologiques.
+    \item Tests (unitaires, fonctionnels, utilisateurs).
+    \item Mise en production et maintenance.
+\end{enumerate}
+
+\subsection{Délais et Budget}
+\begin{itemize}
+    \item Estimation des délais pour chaque phase du projet.
+    \item Budget nécessaire selon les ressources (développeurs, serveurs, outils).
+\end{itemize}
+
+\section{Critères de validation}
+\begin{itemize}
+    \item Validation des fonctionnalités par des tests utilisateurs.
+    \item Conformité aux exigences et fonctionnalités définies.
+    \item Performance et fiabilité (temps de réponse, stabilité, etc.).
+\end{itemize}
+
+\section{Maintenance et évolutions futures}
+\subsection{Suivi}
+La maintenance de l'application comprendra des mises à jour régulières pour corriger les bugs et assurer sa pérennité.
+
+\subsection{Évolutions}
+De nouvelles fonctionnalités pourront être ajoutées, comme l'intégration de nouvelles données météo ou des prévisions saisonnières.
+
+\end{document}
