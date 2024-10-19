@@ -6,9 +6,10 @@
 \usepackage{hyperref}
 \usepackage{amsmath}
 \usepackage{enumitem}
+\usepackage{listings}
 
 \title{Cahier des Charges\\Application Météorologique Web/Mobile}
-\author{Ton Nom}
+\author{Sanlove Eden ALEXIMA}
 \date{\today}
 
 \begin{document}
@@ -20,8 +21,8 @@
 
 \section{Contexte et objectif du projet}
 \subsection{Présentation du projet}
-Cette application a pour but de fournir des données météorologiques en temps réel ainsi que des prévisions à des utilisateurs pour des usages variés (agriculture, tourisme, navigation, etc.). 
-Elle permettra également de consulter des données historiques et d'accéder à des alertes météorologiques importantes.
+Cette application a pour but de fournir des données météorologiques en temps réel ainsi que des prévisions à des utilisateurs pour des usages variés (Urgeo, agriculture, tourisme, navigation, etc.). 
+Elle permettra également de consulter des données historiques et d'accéder à des alertes météorologiques importantes. Les utilisateurs doivent pouvoir accéder à ces informations de manière simple et intuitive. Une application hybride accessible via un navigateur web et une application mobile (Android/iOS).
 
 \subsection{Objectifs principaux}
 Les principaux objectifs de l'application sont :
@@ -36,9 +37,9 @@ Les principaux objectifs de l'application sont :
 \subsection{Définir les utilisateurs}
 Les utilisateurs ciblés par cette application sont :
 \begin{itemize}
-    \item \textbf{Utilisateurs professionnels} : agriculteurs, pilotes, capitaines de navires, etc.
+    \item \textbf{Utilisateurs professionnels} :météorologues,organisations spécialisées dans le climat, agriculteurs, pilotes, capitaines de navires, etc.
     \item \textbf{Utilisateurs grand public} : voyageurs, passionnés de météo, etc.
-    \item \textbf{Administrateurs} : gestionnaires des données et des utilisateurs.
+    \item \textbf{Administrateurs} :Urgeo, gestionnaires des données et des utilisateurs.
 \end{itemize}
 
 \section{Fonctionnalités attendues}
@@ -57,32 +58,51 @@ Les utilisateurs ciblés par cette application sont :
     \item Personnalisation des alertes (types d’alertes, régions spécifiques).
     \item Utilisation de graphiques pour visualiser les tendances météo.
     \item Partage des prévisions sur les réseaux sociaux.
+  \item Partage des prévisions sur les réseaux sociaux.
+
 \end{itemize}
 
 \subsection{Fonctionnalités administratives}
 \begin{itemize}
     \item Gestion des utilisateurs et des permissions.
-    \item Mise à jour des données météo via des API externes.
+    \begin{itemize}
+    \item Interface de gestion des Capteurs
+    \begin{itemize}
+        \item Ajout de nouveaux capteurs
+        \item Surveillance des capteurs
+        \item Configuration des capteurs
+        \item Type de donnes collectees sur le capteur
+	\item Configuration des seuils d'alerte
+        \item Indicateurs de statut pour chaque capteur
+     \item Historique des donnees / Variations
+    \item Alerte en temps reel(email, notifications, SMS)
+	\item Jourrnal des erreurs pour surveiller les disfonctionnements ou les pannes
+\item Tableau de bord de tous les capteurs 
+    \end{itemize}
+\end{itemize}
 \end{itemize}
 
 \section{Technologies utilisées}
 \subsection{Frontend (côté utilisateur)}
 \begin{itemize}
-    \item Web : Angular, React, ou Vue.js.
-    \item Mobile : Ionic, React Native, ou Flutter.
+    \item Web : Ionic \&  Angular.
+    \item Mobile : Ionic et Angulars.
+  \item Langage : JavaScript.
+
 \end{itemize}
 
 \subsection{Backend (côté serveur)}
 \begin{itemize}
-    \item Langage : Node.js, Python (Flask, Django), PHP (Laravel).
-    \item Base de données : MongoDB, MySQL, PostgreSQL.
-    \item API : Intégration avec des API météo (OpenWeatherMap, Météo-France, etc.).
+    \item Langage : C\#.
+    \item Base de données : MongoDB.
+    \item API : ASP .NET Core.
 \end{itemize}
 
 \subsection{Infrastructure}
 \begin{itemize}
-    \item Hébergement sur le cloud (AWS, Azure, Google Cloud).
+    \item Hébergement sur le cloud (AWS).
     \item Notifications push via Firebase Cloud Messaging.
+  \item Versionnage(Github).
 \end{itemize}
 
 \section{Interface utilisateur (UI/UX)}
@@ -98,6 +118,9 @@ Les utilisateurs ciblés par cette application sont :
     \item Compatibilité avec iOS, Android, et les principaux navigateurs web.
     \item Sécurité des données utilisateurs (ex. : localisation) et confidentialité des informations personnelles.
     \item Performance : l'application doit être rapide et fluide, même avec une connexion faible.
+ \item Connectivite: Etude pour une meilleure reseau de connectivite des capteurs avec l'API(WIFI/Bluetooth/Zigbee/Z-wave/Cellulaire).
+ \item Protocole: Etude du protocole de communication(HTTP/HTTPS/MQTT/Websocket).
+ \item Configuration des capteurs
 \end{itemize}
 
 \section{Planification du projet}
