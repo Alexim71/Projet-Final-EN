@@ -8,7 +8,7 @@
 \usepackage{enumitem}
 \usepackage{listings}
 
-\title{Cahier des Charges\\Application Météorologique Web/Mobile}
+\title{Libellé/Cahier des Charges\\Application Météorologique Web/Mobile}
 \author{Sanlove Eden ALEXIMA\\Jackyno JEAN-BAPTISTE\\{Philipe JOSE}\\}
 \date{\today}
 
@@ -22,7 +22,7 @@
 
 \section{Contexte et objectif du projet}
 \subsection{Présentation du projet}
-Cette application a pour but de fournir des données météorologiques en temps réel ainsi que des prévisions à des utilisateurs pour des usages variés (Urgeo, agriculture, tourisme, navigation, etc.). 
+Cette application a pour but de fournir des données météorologiques en temps réel ainsi que des prévisions à des utilisateurs pour des usages variés . 
 Elle permettra également de consulter des données historiques et d'accéder à des alertes météorologiques importantes. Les utilisateurs doivent pouvoir accéder à ces informations de manière simple et intuitive. Une application hybride accessible via un navigateur web et une application mobile (Android/iOS).
 
 \subsection{Objectifs principaux}
@@ -48,10 +48,13 @@ Les utilisateurs ciblés par cette application sont :
 \begin{itemize}
     \item Accès aux prévisions météo par localisation géographique (ville, région, pays).
     \item Consultation des prévisions horaires et journalières.
-    \item Visualisation sur une carte (intégration avec Google Maps ou autre).
+    \item Utiliser des API de cartes telles que "Leaflet", "Google Maps" ou "Mapbox" pour afficher des cartes interactives montrant les stations météorologiques et leurs relevés.
     \item Affichage des données météo en temps réel (température, précipitations, humidité, vent, etc.).
     \item Consultation des données historiques pour une période donnée.
     \item Notifications push pour les alertes météo (tempêtes, orages, etc.).
+     \item Intégrer des annotations ou des événements clés (ex. une tempête ou un pic de température) sur les graphiques pour un meilleur suivi.
+\item Ajouter des couches de cartes spécifiques (par ex. affichage de la vitesse du vent, des zones de précipitations, ou des températures par zones colorées).
+\item Permettre un filtrage basé sur des critères spécifiques (afficher uniquement les zones avec des températures supérieures à 30°C, par exemple).
 
 \end{itemize}
 
@@ -84,6 +87,54 @@ Les utilisateurs ciblés par cette application sont :
 \end{itemize}
 \end{itemize}
 
+\section{Fonctionnalités envisagées}
+\subsection{ Fonctionnalité optionnelle : Contrôle à distance d'un climatiseur}
+
+\textbf{Description :} \\
+L'application pourrait intégrer une fonctionnalité de contrôle à distance d'un climatiseur, déclenchée automatiquement lorsque la température enregistrée par les capteurs dépasse un certain seuil (défini par l'utilisateur ou configuré par défaut). Cette fonctionnalité viserait à maintenir une température ambiante agréable sans intervention manuelle.
+
+\textbf{Objectif :} 
+\begin{itemize}
+    \item Garantir le confort de l'utilisateur en ajustant automatiquement la température de l'environnement via un dispositif de climatisation.
+    \item Contribuer à la gestion énergétique en fonction des conditions climatiques mesurées.
+\end{itemize}
+
+\textbf{Fonctionnement prévu :}
+\begin{enumerate}
+    \item \textbf{Détection de la température :} Les capteurs mesurent en temps réel la température ambiante et envoient les données à l'application.
+    \item \textbf{Analyse des données :} Lorsque la température dépasse un certain seuil (à définir par l'utilisateur), une alerte est générée.
+    \item \textbf{Action de contrôle :} L'application enverrait un signal de contrôle au climatiseur (via un protocole approprié comme IR, Wi-Fi, ou API spécifique), demandant une mise en marche ou une modification des paramètres (comme baisser la température).
+    \item \textbf{Retour d'état :} Le climatiseur renverrait un retour d'état (si compatible) pour indiquer que l'action a été exécutée.
+\end{enumerate}
+
+\textbf{Pré-requis techniques :}
+\begin{itemize}
+    \item Un climatiseur compatible avec une interface de commande à distance (ex : via infrarouge, Wi-Fi, ou autre protocole supporté).
+    \item Une API ou un protocole de communication permettant l'intégration avec l'application.
+\end{itemize}
+
+\textbf{Étude de faisabilité :} \\
+Cette fonctionnalité nécessite une \textit{étude de faisabilité} qui sera menée pendant le projet. Les aspects suivants devront être étudiés :
+\begin{itemize}
+    \item \textbf{Compatibilité matérielle :} Identification des climatiseurs compatibles (par exemple, modèles équipés de Wi-Fi, d'IR, ou d'une API).
+    \item \textbf{Protocole de communication :} Vérification de l'existence de solutions logicielles et matérielles pour permettre le contrôle à distance (via infrarouge, Wi-Fi, etc.).
+    \item \textbf{Limites techniques :} Analyse des éventuelles limitations liées aux modèles de climatiseurs disponibles et à leur capacité à être commandés à distance.
+\end{itemize}
+
+\textbf{Évaluation des risques :}
+\begin{itemize}
+    \item \textbf{Incompatibilité des climatiseurs :} Certains modèles de climatiseurs ne peuvent pas être contrôlés à distance via une API standard.
+    \item \textbf{Complexité de l'intégration :} L'intégration pourrait nécessiter des protocoles spécifiques ou des équipements supplémentaires (comme des récepteurs infrarouges).
+    \item \textbf{Coût supplémentaire :} L'achat de matériels spécifiques pour la communication ou la commande des climatiseurs pourrait entraîner des coûts supplémentaires.
+\end{itemize}
+
+\textbf{Décision de mise en œuvre :} \\
+En fonction des résultats de l'étude de faisabilité, cette fonctionnalité sera soit :
+\begin{itemize}
+    \item \textbf{Implémentée} si elle est jugée techniquement et économiquement viable,
+    \item \textbf{Abandonnée ou reportée} dans le cas contraire.
+\end{itemize}
+
 \section{Technologies utilisées}
 \subsection{Frontend (côté utilisateur)}
 \begin{itemize}
@@ -104,7 +155,12 @@ Les utilisateurs ciblés par cette application sont :
 \begin{itemize}
     \item Hébergement sur le cloud (AWS).
     \item Notifications push via Firebase Cloud Messaging.
+\end{itemize}
+\subsection{Autres outils}
+\begin{itemize}
   \item Versionnage(Github).
+  \item Suivi et evaluation(JIRA)
+\item Test endpoint(Postman)
 \end{itemize}
 
 \section{Interface utilisateur (UI/UX)}
@@ -120,8 +176,8 @@ Les utilisateurs ciblés par cette application sont :
     \item Compatibilité avec iOS, Android, et les principaux navigateurs web.
     \item Sécurité des données utilisateurs (ex. : localisation) et confidentialité des informations personnelles.
     \item Performance : l'application doit être rapide et fluide, même avec une connexion faible.
- \item Connectivite: Etude pour une meilleure reseau de connectivite des capteurs avec l'API(WIFI/Bluetooth/Zigbee/Z-wave/Cellulaire).
- \item Protocole: Etude du protocole de communication(HTTP/HTTPS/MQTT/Websocket).
+ \item Connectivité : Etude pour une meilleure reseau de connectivité des capteurs avec l'API (WIFI/Bluetooth/Zigbee/Z-wave/Cellulaire).
+ \item Protocole: Etude du protocole de communication adequat (HTTP/HTTPS/MQTT/Websocket) .
  \item Configuration des capteurs
 \end{itemize}
 
@@ -130,7 +186,7 @@ Les utilisateurs ciblés par cette application sont :
 \begin{enumerate}
     \item Analyse des besoins et spécifications détaillées.
     \item Développement du prototype (wireframes et maquettes).
-   \item Etude des capteur
+   \item Etude des capteurs
     \item Développement frontend et backend.
     \item Intégration des API météorologiques.
     \item Tests (unitaires, fonctionnels, utilisateurs).
