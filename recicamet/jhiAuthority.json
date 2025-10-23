@@ -1,0 +1,1 @@
+{"_id":"ROLE_USER","jhiUserAuthorityJhiUsers":[{"$oid":"6671c2d1f14d0f3c002090c8"}],"dateCreated":{"$date":{"$numberLong":"1718731492541"}},"lastUpdated":{"$date":{"$numberLong":"1718731492541"}},"version":{"$numberInt":"0"},"_class":"ht.edu.fds.recicamet.domain.JhiAuthority"}
