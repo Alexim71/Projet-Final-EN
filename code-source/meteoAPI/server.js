@@ -12,7 +12,7 @@ app.use('/api/auth', authRoutes);
 
 
 // 1️⃣ Connexion à MongoDB
-mongoose.connect("mongodb://localhost:27017/meteoDB", {
+mongoose.connect("mongodb://localhost:27017/meteo_db", {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
