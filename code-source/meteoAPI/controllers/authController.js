@@ -11,9 +11,17 @@ exports.register = async (req, res) => {
 
   const token = crypto.randomBytes(32).toString('hex');
 
+   const authorities = [{ _id: 'ROLE_USER' }];
+
   const newUser = new User({
+
+    // _id: `user-${Date.now()}`,  // tu peux générer un ID unique
+      // login: login || email.split('@')[0],
     email,
-    tokenConfirmation: token
+    tokenConfirmation: token,
+    authorities,
+    //  activated: false,
+    //   lang_key: 'fr',
   });
 
   await newUser.save();
@@ -47,8 +55,8 @@ exports.confirmAccount = async (req, res) => {
   const user = await User.findOne({ tokenConfirmation: token });
   if (!user) return res.status(400).json({ message: `Token invalide.${token}` });
 
-  user.motDePasse = await bcrypt.hash(motDePasse1, 10);
-  user.estVerifie = true;
+  user.password = await bcrypt.hash(motDePasse1, 10);
+  user.activated = true;
   user.tokenConfirmation = null;
   await user.save();
 
@@ -60,9 +68,9 @@ exports.login = async (req, res) => {
   const user = await User.findOne({ email });
 
   if (!user) return res.status(404).json({ message: "Utilisateur non trouvé." });
-  if (!user.estVerifie) return res.status(403).json({ message: "Compte non confirmé." });
+  if (!user.activated) return res.status(403).json({ message: "Compte non confirmé." });
 
-  const match = await bcrypt.compare(motDePasse, user.motDePasse);
+  const match = await bcrypt.compare(motDePasse, user.password);
   if (!match) return res.status(401).json({ message: "Mot de passe incorrect." });
 
   res.json({ message: "Connexion réussie !" });

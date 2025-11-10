@@ -1,0 +1,2 @@
+{"_id":"ROLE_USER","_class":"com.urgeo.recicamet.domain.Authority"}
+{"_id":"ROLE_ADMIN","_class":"com.urgeo.recicamet.domain.Authority"}
