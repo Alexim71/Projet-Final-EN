@@ -25,6 +25,13 @@ app.get("/", (req, res) => {
     res.send("API fonctionne ✅");
 });
 
+const deviceRoutes = require('./routes/device');
+app.use('/api/device', deviceRoutes);
+
+const dataRoutes = require('./routes/data');
+app.use('/api/data', dataRoutes);
+
+
 // 4️⃣ Lancer le serveur
 const PORT = 3000;
 app.listen(PORT, () => {
