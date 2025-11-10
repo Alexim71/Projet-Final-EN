@@ -1,23 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const Data = require('../models/Data');
+const Station = require('../models/Station');
 
-//  GET – Liste toutes les mesures
+// ✅ Liste des stations
 router.get('/', async (req, res) => {
   try {
-    const allData = await Data.find().limit(50); 
-    res.json(allData);
+    const stations = await Station.find().sort({ createdAt: -1 });
+    res.json(stations);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-//  POST – Ajoute une nouvelle mesure
+// ✅ Ajout d'une station
 router.post('/', async (req, res) => {
   try {
-    const newData = new Data(req.body);
-    await newData.save();
-    res.status(201).json({ message: "✅ Mesure ajoutée avec succès", newData });
+    const newStation = new Station(req.body);
+    await newStation.save();
+    res.status(201).json({ message: "✅ Station ajoutée", newStation });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

@@ -11,8 +11,8 @@ app.use(cors());
 app.use('/api/auth', authRoutes);
 
 
-// 1️⃣ Connexion à MongoDB
-mongoose.connect("mongodb://localhost:27017/meteo_db", {
+//  Connexion à MongoDB
+mongoose.connect("mongodb://localhost:27017/meteoDB", {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
@@ -20,7 +20,7 @@ mongoose.connect("mongodb://localhost:27017/meteo_db", {
 .catch(err => console.error("❌ Erreur MongoDB :", err));
 
 
-// ➡️ Route test
+//  Route test
 app.get("/", (req, res) => {
     res.send("API fonctionne ✅");
 });
@@ -31,8 +31,10 @@ app.use('/api/device', deviceRoutes);
 const dataRoutes = require('./routes/data');
 app.use('/api/data', dataRoutes);
 
+const stationRoutes = require('./routes/stations');
+app.use('/api/stations', stationRoutes);
 
-// 4️⃣ Lancer le serveur
+//  Lancer le serveur
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
