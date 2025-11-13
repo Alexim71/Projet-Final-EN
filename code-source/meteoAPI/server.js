@@ -34,6 +34,12 @@ app.use('/api/data', dataRoutes);
 const stationRoutes = require('./routes/stations');
 app.use('/api/stations', stationRoutes);
 
+const weatherDashboardRoutes = require('./routes/weatherDashboard');
+app.use('/api/weather', weatherDashboardRoutes);
+
+const alertRoutes = require('./routes/alerts');
+app.use('/api/alerts', alertRoutes);
+
 //  Lancer le serveur
 const PORT = 3000;
 app.listen(PORT, () => {
