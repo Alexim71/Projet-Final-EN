@@ -2,6 +2,11 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const authRoutes = require('./routes/auth');
+const swaggerDocs = require("./swagger");
+
+
+// Charger le cron
+require("./cron/cleanup");
 
 
 
@@ -35,13 +40,24 @@ const stationRoutes = require('./routes/stations');
 app.use('/api/stations', stationRoutes);
 
 const weatherDashboardRoutes = require('./routes/weatherDashboard');
-app.use('/api/weather', weatherDashboardRoutes);
+app.use('/api/weatherDashboard', weatherDashboardRoutes);
 
 const alertRoutes = require('./routes/alerts');
 app.use('/api/alerts', alertRoutes);
+
+const weatherRoutes = require('./routes/weather');
+app.use('/api/weather', weatherRoutes);
+
+const forecastRoutes = require('./routes/forecast');
+app.use('/api/weather/forecast', forecastRoutes);
+
+const historyRoutes = require('./routes/history');
+app.use('/api/weather/history', historyRoutes);
+
 
 //  Lancer le serveur
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
+    swaggerDocs(app);
 });

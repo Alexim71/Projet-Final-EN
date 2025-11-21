@@ -2,9 +2,21 @@ const express = require('express');
 const router = express.Router();
 const Data = require('../models/Data');
 const { checkWeatherAlerts } = require('../services/alertService');
+const { normalizeWeatherPayload } = require('../utils/normalizeData');
 
 
 //  GET – Liste toutes les mesures
+/**
+ * @swagger
+ * /api/data:
+ *   get: 
+ *     tags: [Data]
+ *     responses:
+ *       200:
+ *         description: Liste des mesures météo
+ *       500:
+ *         description: Erreur serveur
+ */
 router.get('/', async (req, res) => {
   try {
     const allData = await Data.find().limit(50); 
@@ -15,19 +27,57 @@ router.get('/', async (req, res) => {
 });
 
 //  POST – Ajoute une nouvelle mesure météo et vérifie les alertes
+/**
+ * @swagger
+ * /api/data:
+ *   post: 
+ *     tags: [Data]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               deviceUUID:
+ *                 type: string
+ *               temperature:
+ *                 type: number
+ *               humidity:
+ *                 type: number
+ *               pressure:
+ *                 type: number
+ *               windSpeed:
+ *                 type: number
+ *               rainfall:
+ *                 type: number
+ *               timestamp:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       201:
+ *         description: Mesure ajoutée + alertes générées
+ *       400:
+ *         description: Erreur dans les données envoyées
+ */
 router.post('/', async (req, res) => {
   try {
-    const newData = new Data(req.body);
-    await newData.save();
+    // 1️⃣ Normaliser les valeurs avant insertion
+    const cleanPayload = normalizeWeatherPayload(req.body);
 
-    // 🔎 Vérification automatique des alertes
-    const alerts = await checkWeatherAlerts(newData);
+    // 2️⃣ Sauvegarder les données
+    const newData = new Data(cleanPayload);
+    const saved = await newData.save();
+
+    // 3️⃣ Déclencher les alertes
+    const alerts = await checkWeatherAlerts(saved);
 
     res.status(201).json({
-      message: "✅ Mesure ajoutée avec succès",
-      newData,
+      message: "✅ Mesure ajoutée avec succès (normalisée)",
+      newData: saved,
       alertsGenerated: alerts
     });
+
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -37,6 +87,30 @@ router.post('/', async (req, res) => {
 const { getTimeRange } = require('../utils/dateUtils');
 
 //  Route : Filtrer les données d'une station selon une période donnée
+/**
+ * @swagger
+ * /api/data/station/{uuid}/{period}:
+ *   get:
+ *     tags: [Data]
+ *     parameters:
+ *       - in: path
+ *         name: uuid
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID de la station
+ *       - in: path
+ *         name: period
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [day, week, month]
+ *     responses:
+ *       200:
+ *         description: Données filtrées
+ *       500:
+ *         description: Erreur serveur
+ */
 router.get('/station/:uuid/:period', async (req, res) => {
   try {
     const { start, end } = getTimeRange(req.params.period);
@@ -54,6 +128,23 @@ router.get('/station/:uuid/:period', async (req, res) => {
 });
 
 // ✅ Route : Récupérer la météo actuelle (dernière mesure)
+/**
+ * @swagger
+ * /api/data/station/{uuid}/current:
+ *   get: 
+ *     tags: [Data]
+ *     parameters:
+ *       - in: path
+ *         name: uuid
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Météo actuelle
+ *       404:
+ *         description: Aucune donnée trouvée
+ */
 router.get('/station/:uuid/current', async (req, res) => {
   try {
     // Recherche de la dernière entrée (tri décroissant par timestamp)
@@ -79,6 +170,24 @@ router.get('/station/:uuid/current', async (req, res) => {
 });
 
 // ✅ Route : Moyenne, min, max et somme de pluie par jour
+/**
+ * @swagger
+ * /api/data/station/{uuid}/summary:
+ *   get: 
+ *     tags: [Data]
+ *     parameters:
+ *       - in: path
+ *         name: uuid
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Résumé des derniers jours
+ *       500:
+ *         description: Erreur serveur
+ */
+
 router.get('/station/:uuid/summary', async (req, res) => {
   try {
     const summary = await Data.aggregate([

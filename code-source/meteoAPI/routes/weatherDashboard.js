@@ -2,8 +2,25 @@ const express = require('express');
 const router = express.Router();
 const Data = require('../models/Data');
 
-// 🔹 Route : /api/weather/dashboard/:uuid
-router.get('/dashboard/:uuid', async (req, res) => {
+// 🔹 Route : /api/weather/weatherDashboard/:uuid
+/**
+ * @swagger
+ * /api/weatherDashboard/{uuid}:
+ *   get:
+ *     tags: [Data]
+ *     parameters:
+ *       - in: path
+ *         name: uuid
+ *         schema:
+ *           type: string
+ *         required: false
+ *     responses:
+ *       200:
+ *         description: dashboard météo
+ *       500:
+ *         description: Erreur serveur
+ */
+router.get('/:uuid', async (req, res) => {
   try {
     const uuid = req.params.uuid;
 
