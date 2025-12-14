@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const authRoutes = require('./routes/auth');
+const geoRoutes = require('./routes/geo.routes');
 
 
 
@@ -9,6 +10,7 @@ const app = express();
 app.use(express.json()); // Pour lire du JSON
 app.use(cors());
 app.use('/api/auth', authRoutes);
+app.use('/api/geo', geoRoutes);
 
 
 // 1️⃣ Connexion à MongoDB
