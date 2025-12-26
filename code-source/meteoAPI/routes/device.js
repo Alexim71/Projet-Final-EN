@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Device = require('../models/Device');
+const deviceController = require('../controllers/deviceController');
 
 // GET /api/devices → renvoie tous les devices
 /**
@@ -14,13 +14,6 @@ const Device = require('../models/Device');
  *       500:
  *         description: Erreur serveur
  */
-router.get('/', async (req, res) => {
-  try {
-    const devices = await Device.find();
-    res.json(devices);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.get('/', deviceController.getDevice);
 
 module.exports = router;

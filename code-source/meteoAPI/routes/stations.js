@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Station = require('../models/Station');
+const stationController = require('../controllers/stationController');
 
 // ✅ Liste des stations
 /**
@@ -14,14 +14,7 @@ const Station = require('../models/Station');
  *       500:
  *         description: Erreur serveur
  */
-router.get('/', async (req, res) => {
-  try {
-    const stations = await Station.find().sort({ createdAt: -1 });
-    res.json(stations);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.get('/', stationController.getStations);
 
 // ✅ Ajout d'une station
 /**
@@ -57,15 +50,7 @@ router.get('/', async (req, res) => {
  *       400:
  *         description: Erreur lors de la création de la station
  */
-router.post('/', async (req, res) => {
-  try {
-    const newStation = new Station(req.body);
-    await newStation.save();
-    res.status(201).json({ message: "✅ Station ajoutée", newStation });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
+router.post('/', stationController.postStations);
 
 
 module.exports = router;
