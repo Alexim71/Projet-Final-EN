@@ -7,6 +7,7 @@ const swaggerDocs = require("./swagger");
 
 // Charger le cron
 require("./cron/cleanup");
+const geoRoutes = require('./routes/geo.routes');
 
 
 
@@ -14,6 +15,7 @@ const app = express();
 app.use(express.json()); // Pour lire du JSON
 app.use(cors());
 app.use('/api/auth', authRoutes);
+app.use('/api/geo', geoRoutes);
 
 
 //  Connexion à MongoDB

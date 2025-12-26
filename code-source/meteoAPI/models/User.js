@@ -1,15 +1,10 @@
 const mongoose = require('mongoose');
 
-// const userSchema = new mongoose.Schema({
-//   email: { type: String, required: true, unique: true },
-//   motDePasse: { type: String },
-//   estVerifie: { type: Boolean, default: false },
-//   tokenConfirmation: { type: String }
-// });
+
 
 const authoritySchema = new mongoose.Schema({
   _id: {
-    type: String,  // Exemple : "ROLE_USER"
+    type: String,  
     required: true
   }
 }, { _id: false }); // Empêche Mongoose d’ajouter un second _id automatique
