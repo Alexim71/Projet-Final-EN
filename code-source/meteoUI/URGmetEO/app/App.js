@@ -10,6 +10,8 @@ import {
 } from "react-native";
 
 import styles from '@/app/App.styles';
+import { useRouter } from "expo-router";
+
 
 import { Alert, Linking } from "react-native";
 
@@ -19,6 +21,7 @@ const { height } = Dimensions.get("window");
 export default function App() {
   const slideAnim = useRef(new Animated.Value(height)).current;
   const [showPermission, setShowPermission] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     // Affiche le panneau après le splash
@@ -32,15 +35,7 @@ export default function App() {
     }, 2000);
   }, []);
 
-  // const requestLocationPermission = async () => {
-  //   const { status } = await Location.requestForegroundPermissionsAsync();
-  //   if (status === "granted") {
-  //     console.log("📍 Permission accordée");
-  //   } else {
-  //     console.log("❌ Permission refusée");
-  //   }
-  // };
-
+ 
 
   const requestLocationPermission = async () => {
   const { status, canAskAgain } =
@@ -48,6 +43,7 @@ export default function App() {
 
   if (status === "granted") {
     console.log("📍 Permission déjà accordée");
+     goToHome();
     return;
   }
 
@@ -71,11 +67,109 @@ export default function App() {
 
   if (result.status === "granted") {
     console.log("📍 Permission accordée");
+    goToHome();
   } else {
-    console.log("❌ Permission refusée");
+    //console.log("❌ Permission refusée");
+    Alert.alert(
+        "Permission refusée",
+        "La météo locale nécessite la localisation."
+      );
   }
 };
 
+const goToHome = async () => {
+  try {
+    // 1️⃣ Vérifier GPS
+    const servicesEnabled =
+      await Location.hasServicesEnabledAsync();
+
+    if (!servicesEnabled) {
+      Alert.alert(
+        "GPS désactivé",
+        "Activez la localisation pour continuer.",
+        [
+          { text: "Annuler", style: "cancel" },
+          {
+            text: "Paramètres",
+            onPress: () => Linking.openSettings(),
+          },
+        ]
+      );
+      return;
+    }
+
+    let location = null;
+
+    await Location.watchPositionAsync(
+  {
+    accuracy: Location.Accuracy.Balanced,
+    timeInterval: 1000,
+    distanceInterval: 1,
+  },
+  () => {}
+);
+
+
+    try {
+      // 2️⃣ Tentative position actuelle
+      location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeout: 10000,
+      });
+    } catch (e) {
+      console.log("⚠️ getCurrentPositionAsync échoué");
+    }
+
+   // 3️⃣ Fallback Android Emulator
+if (!location) {
+  location = await Location.getLastKnownPositionAsync();
+
+  if (location) {
+    console.log("📍 Last known location utilisée");
+    console.log("📍 Coordonnées last known :", location.coords);
+  } else {
+    console.log("❌ Aucune last known location disponible");
+  }
+}
+
+// 4️⃣ Vérification finale AVANT navigation
+if (!location || !location.coords) {
+  Alert.alert(
+    "Position indisponible",
+    "Impossible d'obtenir la position GPS."
+  );
+ // isNavigating.current = false;
+  return;
+}
+
+
+  if (!location) {
+      Alert.alert(
+        "Position indisponible",
+        "Impossible d'obtenir la position GPS."
+      );
+      return;
+    }
+
+    console.log("📍 Coordonnées :", location.coords);
+
+    // 4️⃣ Navigation
+    router.replace({
+      pathname: "/home",
+      params: {
+        lat: location.coords.latitude,
+        lon: location.coords.longitude,
+      },
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur localisation :", error);
+    Alert.alert(
+      "Erreur GPS",
+      "La localisation n'est pas disponible."
+    );
+  }
+};
 
   return (
     <View style={styles.container}>
