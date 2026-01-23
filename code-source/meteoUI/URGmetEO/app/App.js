@@ -11,6 +11,9 @@ import {
 
 import styles from '@/app/App.styles';
 import { useRouter } from "expo-router";
+import LottieView from "lottie-react-native";
+import { ActivityIndicator } from "react-native";
+
 
 
 import { Alert, Linking } from "react-native";
@@ -21,6 +24,8 @@ const { height } = Dimensions.get("window");
 export default function App() {
   const slideAnim = useRef(new Animated.Value(height)).current;
   const [showPermission, setShowPermission] = useState(false);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+  const fadePermission = useRef(new Animated.Value(1)).current;
   const router = useRouter();
 
   useEffect(() => {
@@ -75,6 +80,15 @@ export default function App() {
         "La météo locale nécessite la localisation."
       );
   }
+
+  Animated.timing(fadePermission, {
+  toValue: 0,
+  duration: 300,
+  useNativeDriver: true,
+}).start(() => {
+  setLoadingLocation(true);
+});
+
 };
 
 const goToHome = async () => {
@@ -98,16 +112,17 @@ const goToHome = async () => {
       return;
     }
 
+     setLoadingLocation(true);
     let location = null;
 
-    await Location.watchPositionAsync(
-  {
-    accuracy: Location.Accuracy.Balanced,
-    timeInterval: 1000,
-    distanceInterval: 1,
-  },
-  () => {}
-);
+//     await Location.watchPositionAsync(
+//   {
+//     accuracy: Location.Accuracy.Balanced,
+//     timeInterval: 1000,
+//     distanceInterval: 1,
+//   },
+//   () => {}
+// );
 
 
     try {
@@ -171,6 +186,8 @@ if (!location || !location.coords) {
   }
 };
 
+
+
   return (
     <View style={styles.container}>
       {/* SPLASH */}
@@ -182,11 +199,11 @@ if (!location || !location.coords) {
       />
 
       {/* SLIDING PERMISSION PANEL */}
-      {showPermission && (
+      {showPermission && !loadingLocation && (
         <Animated.View
           style={[
             styles.permissionBox,
-            { top: slideAnim },
+            { top: slideAnim, opacity: fadePermission, },
           ]}
         >
           <Text style={styles.permissionTitle}>
@@ -205,6 +222,29 @@ if (!location || !location.coords) {
           </TouchableOpacity>
         </Animated.View>
       )}
+
+      {loadingLocation && (
+  <View style={styles.loaderOverlay}>
+    <ActivityIndicator size="large" color="#4da6ff" />
+    
+  </View>
+)}
+
+
+ {loadingLocation && (
+        <>
+          <LottieView
+            source={require("../assets/lottie/gps-loading.json")}
+            autoPlay
+            loop
+            style={styles.lottie}
+          />
+          <Text style={styles.loadingText}>
+            Récupération de votre position…
+          </Text>
+        </>
+      )}
+
     </View>
   );
 }
