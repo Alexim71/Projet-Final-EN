@@ -1,0 +1,256 @@
+[{
+  "_id": {
+    "$oid": "64b7c08afb72a1288906c44c"
+  },
+  "code": "HT_SUD_AMB_03",
+  "mac_address": "48:55:19:C2:32:10",
+  "ip_address": "",
+  "description": "Université SEED",
+  "installation_date": {
+    "$date": "2023-10-11T20:44:00.000Z"
+  },
+  "latitude": 18.210939407348633,
+  "longitude": -73.7489242553711,
+  "altitude": 7.340000152587891,
+  "address": "Rue Université SEED",
+  "department": "Sud",
+  "province": "Cayes",
+  "status": 1,
+  "details": "",
+  "comments": "",
+  "hash_mac": "cf1ae00cc1d07dc5d666c1fe21a37338",
+  "last_down_date": {
+    "$date": "2024-06-07T16:32:59.583Z"
+  },
+  "created_by": "admin",
+  "created_date": {
+    "$date": "2023-07-19T10:44:00.000Z"
+  },
+  "last_modified_by": "admin",
+  "last_modified_date": {
+    "$date": "2023-07-19T10:44:00.000Z"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Station",
+  "location": {
+    "type": "Point",
+    "coordinates": [
+      -73.7489242553711,
+      18.210939407348633
+    ]
+  }
+},
+{
+  "_id": {
+    "$oid": "64c07506ee1777686308bc02"
+  },
+  "code": "HT_SUD_AMB_02",
+  "mac_address": "C4:5B:BE:5D:7F:82",
+  "description": "Collège Saint Dominique",
+  "installation_date": {
+    "$date": "2023-10-10T20:19:00.000Z"
+  },
+  "latitude": 18.0772705078125,
+  "longitude": -73.91744232177734,
+  "altitude": 12.489999771118164,
+  "address": "Route Nle Departementale",
+  "department": "Sud",
+  "province": "Port-Salut",
+  "status": 1,
+  "hash_mac": "3aab7645bd110cea3ffe038694130d2c",
+  "last_down_date": {
+    "$date": "2024-09-29T01:26:51.693Z"
+  },
+  "last_data_date": {
+    "$date": "2024-03-06T14:05:00.000Z"
+  },
+  "created_by": "admin",
+  "created_date": {
+    "$date": "2023-07-26T01:19:00.000Z"
+  },
+  "last_modified_by": "admin",
+  "last_modified_date": {
+    "$date": "2023-07-26T01:19:00.000Z"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Station",
+  "comments": "",
+  "details": "",
+  "ip_address": "",
+  "location": {
+    "type": "Point",
+    "coordinates": [
+      -73.91744232177734,
+      18.0772705078125
+    ]
+  }
+},
+{
+  "_id": {
+    "$oid": "65287bfd2a4fb90a8e8d6b8c"
+  },
+  "code": "HT_SUD_AMB_04",
+  "mac_address": "48:55:19:C2:95:A1",
+  "description": "Collège Bon Berger",
+  "installation_date": {
+    "$date": "2023-10-12T23:02:00.000Z"
+  },
+  "latitude": 18.32725715637207,
+  "longitude": -73.85710906982422,
+  "altitude": 9,
+  "address": "94, Champois",
+  "department": "Sud",
+  "province": "Camp Perrin",
+  "status": 1,
+  "comments": "Installation incomplète, Problème avec la SC.",
+  "hash_mac": "5d14d4c4799088a1f7bab581c59843bc",
+  "last_down_date": {
+    "$date": "2024-06-07T16:32:59.583Z"
+  },
+  "created_by": "admin",
+  "created_date": {
+    "$date": "2023-10-12T23:02:00.000Z"
+  },
+  "last_modified_by": "admin",
+  "last_modified_date": {
+    "$date": "2023-10-12T23:02:00.000Z"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Station",
+  "details": "",
+  "ip_address": "",
+  "location": {
+    "type": "Point",
+    "coordinates": [
+      -73.85710906982422,
+      18.32725715637207
+    ]
+  }
+},
+{
+  "_id": {
+    "$oid": "6510bdfd5d13d04fb6d8edd8"
+  },
+  "code": "HT_OUE_AMB_02",
+  "mac_address": "C4:5B:BE:5E:FB:BF",
+  "description": "URGeo-BME",
+  "installation_date": {
+    "$date": "2023-09-24T22:52:00.000Z"
+  },
+  "latitude": 18.56242561340332,
+  "longitude": -72.2967529296875,
+  "altitude": 8,
+  "address": "42 Rue Jacques Premier",
+  "department": "Ouest",
+  "province": "Delmas",
+  "status": 1,
+  "hash_mac": "ed74659f3e05ab9b73e9ec48f0081154",
+  "last_down_date": {
+    "$date": "2024-09-29T01:26:51.693Z"
+  },
+  "last_data_date": {
+    "$date": "2024-09-05T23:55:00.000Z"
+  },
+  "last_modified_by": "levilliard",
+  "last_modified_date": {
+    "$date": "2024-01-25T13:50:54.826Z"
+  },
+  "site": {
+    "$oid": "64b7be6ffb72a1288906c44b"
+  },
+  "stationHost": {
+    "$oid": "64b73a96fb72a1288906c44a"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Station",
+  "comments": "",
+  "details": "",
+  "ip_address": "",
+  "location": {
+    "type": "Point",
+    "coordinates": [
+      -72.2967529296875,
+      18.56242561340332
+    ]
+  }
+},
+{
+  "_id": {
+    "$oid": "64b7d5c4fb72a1288906c44f"
+  },
+  "code": "HT_OUE_AMB_01",
+  "mac_address": "48:55:19:C3:44:7B",
+  "description": "Site de la Faculté des Sciences",
+  "installation_date": {
+    "$date": "2023-07-19T12:20:00.000Z"
+  },
+  "latitude": 18.539403915405273,
+  "longitude": -72.34175872802734,
+  "altitude": 15.100000381469727,
+  "address": "Port-au-Prince",
+  "department": "Ouest",
+  "province": "Port-au-Prince",
+  "status": 0,
+  "hash_mac": "1fd3be3253fee922674e3ce070778ae8",
+  "last_down_date": {
+    "$date": "2024-02-07T16:32:59.583Z"
+  },
+  "last_modified_by": "levilliard",
+  "last_modified_date": {
+    "$date": "2024-01-25T13:53:47.376Z"
+  },
+  "site": {
+    "$oid": "64b7d399fb72a1288906c44d"
+  },
+  "stationHost": {
+    "$oid": "64b73a96fb72a1288906c44a"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Station",
+  "comments": "",
+  "details": "",
+  "ip_address": "",
+  "location": {
+    "type": "Point",
+    "coordinates": [
+      -72.34175872802734,
+      18.539403915405273
+    ]
+  }
+},
+{
+  "_id": {
+    "$oid": "64c0747eee1777686308bc01"
+  },
+  "code": "HT_SUD_AMB_01",
+  "mac_address": "48:55:19:C2:9C:D6",
+  "description": "Notre Dame de Lourde",
+  "installation_date": {
+    "$date": "2023-10-09T19:15:00.000Z"
+  },
+  "latitude": 18.208024978637695,
+  "longitude": -74.03841400146484,
+  "altitude": 11.654999732971191,
+  "address": "50, Rue Notre Dame de Lourde",
+  "department": "Sud",
+  "province": "Coteaux",
+  "status": 1,
+  "hash_mac": "d0227dc723e92ff12d72705dd12855b5",
+  "last_down_date": {
+    "$date": "2024-09-02T16:35:05.946Z"
+  },
+  "created_by": "admin",
+  "created_date": {
+    "$date": "2023-07-26T01:15:00.000Z"
+  },
+  "last_modified_by": "admin",
+  "last_modified_date": {
+    "$date": "2023-07-26T01:15:00.000Z"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Station",
+  "comments": "",
+  "details": "",
+  "ip_address": "",
+  "location": {
+    "type": "Point",
+    "coordinates": [
+      -74.03841400146484,
+      18.208024978637695
+    ]
+  }
+}]

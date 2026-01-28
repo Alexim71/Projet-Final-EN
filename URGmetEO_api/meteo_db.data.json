@@ -1,0 +1,21 @@
+[{
+  "_id": {
+    "$oid": "6945e20ab51983b2025e8a33"
+  },
+  "station": {
+    "$oid": "6510bdfd5d13d04fb6d8edd8"
+  },
+  "temperature": 29.4,
+  "humidity": 76,
+  "pressure": 1012,
+  "wind_speed": 3.2,
+  "wind_direction": 180,
+  "rainfall": 0,
+  "battery_level": 88,
+  "device_status": "ONLINE",
+  "measured_at": {
+    "$date": "2025-12-19T23:38:50.078Z"
+  },
+  "source": "SENSOR",
+  "created_by": "system"
+}]

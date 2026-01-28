@@ -1,0 +1,23 @@
+[{
+  "_id": "12",
+  "name": "Pile AA",
+  "description": "Pile AA",
+  "version": 0,
+  "_class": "ht.edu.fds.recicamet.domain.DeviceType"
+},
+{
+  "_id": {
+    "$oid": "65b1801a2beaeb4add7603e2"
+  },
+  "name": "Modem",
+  "description": "Appareil de connection internet",
+  "version": 0,
+  "_class": "ht.edu.fds.recicamet.domain.DeviceType"
+},
+{
+  "_id": "11",
+  "name": "SIM",
+  "description": "Carte SIM pour Modem WiFi",
+  "version": 0,
+  "_class": "ht.edu.fds.recicamet.domain.DeviceType"
+}]

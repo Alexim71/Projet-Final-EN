@@ -1,0 +1,196 @@
+[{
+  "_id": {
+    "$oid": "652dee9c899da450ef479295"
+  },
+  "code": "DIGI01",
+  "description": "Numéro: 31065246",
+  "installation_date": {
+    "$date": "2023-10-17T02:16:00.000Z"
+  },
+  "deviceType": {
+    "$ref": "device_type",
+    "$id": {
+      "$oid": "652c95a2e1a86041539647ac"
+    }
+  },
+  "station": {
+    "$ref": "station",
+    "$id": {
+      "$oid": "65287bfd2a4fb90a8e8d6b8c"
+    }
+  },
+  "_class": "com.urgeo.recicamet.domain.Device"
+},
+{
+  "_id": {
+    "$oid": "65b180df2beaeb4add7603e4"
+  },
+  "code": "ZTE01",
+  "description": "Modem: ZTE AT&T Wifi sans fil Mobile hotspot MF923",
+  "installation_date": {
+    "$date": "2023-12-08T10:22:00.000Z"
+  },
+  "manufacturer": "ZTE",
+  "provider": "ZTE",
+  "comments": "https://www.amazon.com/ZTE-Velocity-Mobile-Hotspot-Unlocked/dp/B00O84PEWS/ref=sr_1_7?crid=30D6JKWKSVIAQ&keywords=zte+modem+sim&qid=1706590409&sprefix=zte+modem+sim%2Caps%2C355&sr=8-7&ufe=app_do%3Aamzn1.fos.f5122f16-c3e8-4386-bf32-63e904010ad0",
+  "deviceType": {
+    "$oid": "65b1801a2beaeb4add7603e2"
+  },
+  "station": {
+    "$oid": "64b7c08afb72a1288906c44c"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Device"
+},
+{
+  "_id": {
+    "$oid": "652c963ce1a86041539647af"
+  },
+  "code": "NATC01",
+  "description": "No: +509 41 43 7695, PUK1: 82768832",
+  "installation_date": {
+    "$date": "2023-10-16T01:46:00.000Z"
+  },
+  "model": "NATCOM ",
+  "provider": "NATCOM",
+  "deviceType": {
+    "$ref": "device_type",
+    "$id": {
+      "$oid": "652c95a2e1a86041539647ac"
+    }
+  },
+  "station": {
+    "$ref": "station",
+    "$id": {
+      "$oid": "64c0747eee1777686308bc01"
+    }
+  },
+  "_class": "com.urgeo.recicamet.domain.Device"
+},
+{
+  "_id": {
+    "$oid": "65b8818240eff25b77ffbf8d"
+  },
+  "code": "ZTE02",
+  "description": "Modem: ZTE AT&T Wifi sans fil Mobile hotspot MF923",
+  "installation_date": {
+    "$date": "2023-12-08T10:22:00.000Z"
+  },
+  "manufacturer": "ZTE",
+  "provider": "ZTE",
+  "comments": "https://www.amazon.com/ZTE-Velocity-Mobile-Hotspot-Unlocked/dp/B00O84PEWS/ref=sr_1_7?crid=30D6JKWKSVIAQ&keywords=zte+modem+sim&qid=1706590409&sprefix=zte+modem+sim%2Caps%2C355&sr=8-7&ufe=app_do%3Aamzn1.fos.f5122f16-c3e8-4386-bf32-63e904010ad0",
+  "deviceType": {
+    "$oid": "65b1801a2beaeb4add7603e2"
+  },
+  "station": {
+    "$oid": "64c0747eee1777686308bc01"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Device"
+},
+{
+  "_id": {
+    "$oid": "65b883124fefad1e27bc8fb2"
+  },
+  "code": "41915148",
+  "description": "SIM NATCOM, No: 41915148",
+  "installation_date": {
+    "$date": "2023-12-08T10:22:00.000Z"
+  },
+  "state": "Actif",
+  "manufacturer": "NATCOM",
+  "deviceType": "11",
+  "station": {
+    "$oid": "65287bfd2a4fb90a8e8d6b8c"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Device"
+},
+{
+  "_id": {
+    "$oid": "65b883a74fefad1e27bc8fb3"
+  },
+  "code": "41955479",
+  "description": "SIM NATCOM, No: 41955479",
+  "installation_date": {
+    "$date": "2023-12-08T12:22:00.000Z"
+  },
+  "model": "NATCOM",
+  "state": "Actif",
+  "deviceType": "11",
+  "station": {
+    "$oid": "64c07506ee1777686308bc02"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Device"
+},
+{
+  "_id": {
+    "$oid": "65b8818d40eff25b77ffbf8e"
+  },
+  "code": "ZTE03",
+  "description": "Modem: ZTE AT&T Wifi sans fil Mobile hotspot MF923",
+  "installation_date": {
+    "$date": "2023-12-08T10:22:00.000Z"
+  },
+  "manufacturer": "ZTE",
+  "provider": "ZTE",
+  "comments": "https://www.amazon.com/ZTE-Velocity-Mobile-Hotspot-Unlocked/dp/B00O84PEWS/ref=sr_1_7?crid=30D6JKWKSVIAQ&keywords=zte+modem+sim&qid=1706590409&sprefix=zte+modem+sim%2Caps%2C355&sr=8-7&ufe=app_do%3Aamzn1.fos.f5122f16-c3e8-4386-bf32-63e904010ad0",
+  "deviceType": {
+    "$oid": "65b1801a2beaeb4add7603e2"
+  },
+  "station": {
+    "$oid": "64c07506ee1777686308bc02"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Device"
+},
+{
+  "_id": {
+    "$oid": "65b8819740eff25b77ffbf8f"
+  },
+  "code": "ZTE04",
+  "description": "Modem: ZTE AT&T Wifi sans fil Mobile hotspot MF923",
+  "installation_date": {
+    "$date": "2023-12-08T10:22:00.000Z"
+  },
+  "manufacturer": "ZTE",
+  "provider": "ZTE",
+  "comments": "https://www.amazon.com/ZTE-Velocity-Mobile-Hotspot-Unlocked/dp/B00O84PEWS/ref=sr_1_7?crid=30D6JKWKSVIAQ&keywords=zte+modem+sim&qid=1706590409&sprefix=zte+modem+sim%2Caps%2C355&sr=8-7&ufe=app_do%3Aamzn1.fos.f5122f16-c3e8-4386-bf32-63e904010ad0",
+  "deviceType": {
+    "$oid": "65b1801a2beaeb4add7603e2"
+  },
+  "station": {
+    "$oid": "65287bfd2a4fb90a8e8d6b8c"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Device"
+},
+{
+  "_id": {
+    "$oid": "65b885234fefad1e27bc8fb4"
+  },
+  "code": "41955490",
+  "description": "SIM NATCOM, No: 41955490",
+  "installation_date": {
+    "$date": "2023-12-08T10:22:00.000Z"
+  },
+  "state": "Actif",
+  "provider": "NATCOM",
+  "deviceType": "11",
+  "station": {
+    "$oid": "65287bfd2a4fb90a8e8d6b8c"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Device"
+},
+{
+  "_id": {
+    "$oid": "65b8866d4fefad1e27bc8fb5"
+  },
+  "code": "41914002",
+  "description": "SIM NATCOM, No:41914002",
+  "installation_date": {
+    "$date": "2023-12-08T10:22:00.000Z"
+  },
+  "state": "Actif",
+  "provider": "NATCOM",
+  "deviceType": "11",
+  "station": {
+    "$oid": "64c0747eee1777686308bc01"
+  },
+  "_class": "ht.edu.fds.recicamet.domain.Device"
+}]
