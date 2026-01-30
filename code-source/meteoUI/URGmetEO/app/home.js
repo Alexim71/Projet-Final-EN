@@ -1,8 +1,12 @@
+import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  AppState,
   Dimensions,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,10 +17,23 @@ import {
 import Svg, { Circle, Defs, Line, RadialGradient, Rect, Stop } from "react-native-svg";
 import { apiClient } from './api';
 
-
 const { width } = Dimensions.get('window');
 
-// Fonction pour convertir degrés en direction cardinale
+// Configuration
+const POLLING_INTERVAL = 30000; // 30 secondes pour les données météo
+const LOCATION_UPDATE_INTERVAL = 10000; // 10 secondes pour la position
+const MAX_RETRIES = 3;
+const LOCATION_CHANGE_THRESHOLD = 0.001; // ~100m - seuil plus bas pour réactivité
+const LOCATION_ACCURACY = Location.Accuracy.Balanced;
+
+// Fonction de distance simplifiée (plus rapide)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const dx = lat2 - lat1;
+  const dy = lon2 - lon1;
+  return Math.sqrt(dx * dx + dy * dy);
+};
+
+// Fonctions utilitaires existantes
 const getCardinalDirection = (degrees) => {
   const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 
                       'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
@@ -40,36 +57,24 @@ const getUVDescription = (uvIndex) => {
   return "Extrême";
 };
 
-// Fonction pour obtenir la description météo basée sur les données
 const getWeatherDescription = (data) => {
   if (!data) return "Ensoleillé";
-  
   const { temperature, humidity, rainfall } = data;
-  
   if (rainfall > 0) return "Pluvieux";
   if (humidity > 80) return "Humide";
   if (temperature > 30) return "Chaud";
   if (temperature < 15) return "Frais";
-  
   return "Ensoleillé";
 };
 
-// Composante pour l'indicateur de vent
 const WindSpeedIndicator = ({ speed = 0, direction = 0 }) => {
-  // Convertir la vitesse de m/s à km/h si nécessaire
   const speedKmh = speed * 3.6;
-  
-  // Niveau de vent (0-4)
   const windLevel = Math.min(4, Math.floor(speedKmh / 10));
-  
-  // Convertir direction en degrés vers cardinal
   const directionCardinal = getCardinalDirection(direction);
   
   return (
     <View style={styles.windContainer}>
-      {/* Graphique de la vitesse du vent */}
       <View style={styles.windGraph}>
-        {/* Barres de niveau de vent */}
         <View style={styles.windBars}>
           {[1, 2, 3, 4].map((level) => (
             <View 
@@ -83,7 +88,6 @@ const WindSpeedIndicator = ({ speed = 0, direction = 0 }) => {
           ))}
         </View>
         
-        {/* Aiguille de direction */}
         <Svg width={60} height={60} style={styles.windDirectionArrow}>
           <Circle cx="30" cy="30" r="20" fill="rgba(255, 255, 255, 0.1)" />
           <Line
@@ -106,107 +110,368 @@ const WindSpeedIndicator = ({ speed = 0, direction = 0 }) => {
       <View style={styles.windInfo}>
         <Text style={styles.windSpeedValue}>{speedKmh.toFixed(1)} km/h</Text>
         <Text style={styles.windDirectionText}>{directionCardinal}</Text>
-        <Text style={styles.windDescription}>
-          {getWindDescription(speedKmh)}
-        </Text>
+        <Text style={styles.windDescription}>{getWindDescription(speedKmh)}</Text>
       </View>
     </View>
   );
 };
 
 export default function Home() {
-  const { lat, lon } = useLocalSearchParams();
+  const params = useLocalSearchParams();
   const [stationData, setStationData] = useState(null);
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const [error, setError] = useState(null);
+  const [pollingEnabled, setPollingEnabled] = useState(true);
+  const [currentLocation, setCurrentLocation] = useState({
+    lat: parseFloat(params.lat) || 18.533333,
+    lon: parseFloat(params.lon) || -72.333333,
+    source: 'initial'
+  });
+  const [locationAccuracy, setLocationAccuracy] = useState(null);
+  const [lastLocationCheck, setLastLocationCheck] = useState(null);
+  
+  const pollingRef = useRef(null);
+  const locationWatchRef = useRef(null);
+  const retryCountRef = useRef(0);
+  const lastApiLocationRef = useRef(null); // Dernière position utilisée pour l'API
+  const appStateRef = useRef(AppState.currentState);
   const router = useRouter();
 
-  useEffect(() => {
-    fetchStationData();
-  }, []);
-
-  
-const fetchStationData = async () => {
-  try {
-    setLoading(true);
-    
-    // Configuration d'axios avec timeout et headers
-    const response = await apiClient.get(
-      '/api/geo/nearest',
-      {
-        params: {
-          lat: parseFloat(lat),
-          lon: parseFloat(lon)
-        },
+  // 1. Initialisation automatique du suivi GPS
+  const initializeLocationTracking = async () => {
+    try {
+      // Demander la permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        console.log("⚠️ Permission GPS non accordée");
+        // Continuer avec la position initiale
+        return false;
       }
+      
+      console.log("✅ Permission GPS accordée");
+      
+      // Configurer le watchPosition pour un suivi en temps réel
+      locationWatchRef.current = await Location.watchPositionAsync(
+        {
+          accuracy: LOCATION_ACCURACY,
+          timeInterval: LOCATION_UPDATE_INTERVAL,
+          distanceInterval: 10, // 10m minimum entre les updates
+        },
+        (location) => {
+          handleNewLocation(location);
+        }
+      );
+      
+      console.log("📍 Suivi GPS démarré");
+      return true;
+      
+    } catch (error) {
+      console.error("❌ Erreur initialisation GPS:", error);
+      return false;
+    }
+  };
+
+  // 2. Gérer une nouvelle position GPS
+  const handleNewLocation = (location) => {
+    if (!location || !location.coords) return;
+    
+    const newCoords = {
+      lat: location.coords.latitude,
+      lon: location.coords.longitude,
+      accuracy: location.coords.accuracy,
+      timestamp: new Date(),
+      source: 'gps'
+    };
+    
+    // Toujours mettre à jour l'affichage de la position
+    setCurrentLocation(prev => ({
+      ...prev,
+      lat: newCoords.lat,
+      lon: newCoords.lon,
+      source: 'gps'
+    }));
+    
+    setLocationAccuracy(newCoords.accuracy);
+    setLastLocationCheck(new Date());
+    
+    // Vérifier si on doit rafraîchir les données météo
+    const shouldRefresh = shouldRefreshWeatherData(newCoords);
+    
+    if (shouldRefresh) {
+      console.log("📍 Position changée, rafraîchissement des données...");
+      lastApiLocationRef.current = { lat: newCoords.lat, lon: newCoords.lon };
+      fetchWeatherData(newCoords.lat, newCoords.lon);
+    }
+  };
+
+  // 3. Déterminer si on doit rafraîchir les données météo
+  const shouldRefreshWeatherData = (newCoords) => {
+    if (!lastApiLocationRef.current) {
+      return true; // Première fois
+    }
+    
+    const distance = calculateDistance(
+      lastApiLocationRef.current.lat,
+      lastApiLocationRef.current.lon,
+      newCoords.lat,
+      newCoords.lon
     );
     
-    // Avec axios, les données sont directement dans response.data
-    const data = response.data;
-    
-    if (data.station && data.data) {
-      setStationData(data.station);
-      setWeatherData(data.data);
+    return distance > LOCATION_CHANGE_THRESHOLD;
+  };
+
+  // 4. Charger les données météo (TOUJOURS utiliser les paramètres explicites)
+  const fetchWeatherData = async (latitude, longitude) => {
+    try {
+      setError(null);
+      
+      console.log(`📡 Requête météo pour: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+      
+      const response = await apiClient.get('/api/geo/nearest', {
+        params: {
+          lat: latitude,
+          lon: longitude
+        },
+      });
+      
+      const data = response.data;
+      
+      if (data.station && data.data) {
+        setStationData(data.station);
+        setWeatherData(data.data);
+        setLastUpdate(new Date());
+        retryCountRef.current = 0;
+        console.log("✅ Données météo mises à jour");
+        
+        // Mettre à jour la référence de la dernière position utilisée
+        lastApiLocationRef.current = { lat: latitude, lon: longitude };
+      }
+    } catch (error) {
+      console.error('❌ Erreur API météo:', error);
+      retryCountRef.current += 1;
+      
+      if (retryCountRef.current >= MAX_RETRIES) {
+        setError("Connexion impossible. Mode démo activé.");
+        setPollingEnabled(false);
+      }
+      
+      // Fallback aux données de démo
+      setDemoData();
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-  } catch (error) {
-    console.error('Erreur lors du chargement des données:', error);
+  };
+
+  // 5. Rafraîchissement manuel (utilise la position actuelle)
+  const onRefresh = () => {
+    setRefreshing(true);
+    setPollingEnabled(true);
+    fetchWeatherData(currentLocation.lat, currentLocation.lon);
+  };
+
+  // 6. Polling automatique des données météo
+  const startPolling = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+    }
     
-    // Gestion d'erreur plus détaillée avec axios
-    if (error.response) {
-      // La requête a été faite et le serveur a répondu avec un code d'erreur
-      console.error('Status:', error.response.status);
-      console.error('Data:', error.response.data);
-      console.error('Headers:', error.response.headers);
-    } else if (error.request) {
-      // La requête a été faite mais aucune réponse n'a été reçue
-      console.error('Pas de réponse reçue:', error.request);
+    pollingRef.current = setInterval(() => {
+      if (pollingEnabled) {
+        console.log("🔄 Rafraîchissement automatique des données météo");
+        // TOUJOURS utiliser currentLocation qui est à jour
+        fetchWeatherData(currentLocation.lat, currentLocation.lon);
+      }
+    }, POLLING_INTERVAL);
+  };
+
+  const stopPolling = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
+
+  // 7. Gestion du changement d'état de l'app
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        // L'app revient au premier plan, vérifier la position
+        console.log("📱 App revenue au premier plan");
+        checkCurrentPosition();
+      }
+      appStateRef.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // 8. Vérifier la position actuelle
+  const checkCurrentPosition = async () => {
+    try {
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: LOCATION_ACCURACY,
+        timeout: 5000,
+      });
+      
+      if (location && location.coords) {
+        handleNewLocation(location);
+      }
+    } catch (error) {
+      console.log("⚠️ Impossible d'obtenir la position actuelle:", error);
+    }
+  };
+
+  // 9. Effet principal d'initialisation
+  useEffect(() => {
+    const init = async () => {
+      console.log("🚀 Initialisation de l'application");
+      
+      // Initialiser la référence de position API
+      lastApiLocationRef.current = {
+        lat: currentLocation.lat,
+        lon: currentLocation.lon
+      };
+      
+      // Démarrer le suivi GPS automatiquement
+      await initializeLocationTracking();
+      
+      // Charger les données initiales
+      fetchWeatherData(currentLocation.lat, currentLocation.lon);
+      
+      // Démarrer le polling météo
+      startPolling();
+      
+      // Vérifier la position immédiatement
+      setTimeout(() => checkCurrentPosition(), 1000);
+    };
+    
+    init();
+    
+    // Nettoyage
+    return () => {
+      stopPolling();
+      if (locationWatchRef.current) {
+        locationWatchRef.current.remove();
+        locationWatchRef.current = null;
+      }
+    };
+  }, []);
+
+  // 10. Redémarrer le polling quand il est activé/désactivé
+  useEffect(() => {
+    if (pollingEnabled) {
+      startPolling();
     } else {
-      // Une erreur s'est produite lors de la configuration de la requête
-      console.error('Erreur de configuration:', error.message);
+      stopPolling();
     }
+  }, [pollingEnabled]);
+
+  // 11. Gérer les paramètres de navigation
+  useEffect(() => {
+    const newLat = parseFloat(params.lat);
+    const newLon = parseFloat(params.lon);
     
-    setDemoData();
-  } finally {
-    setLoading(false);
-  }
-};
+    if (!isNaN(newLat) && !isNaN(newLon)) {
+      const hasChanged = 
+        newLat !== currentLocation.lat || 
+        newLon !== currentLocation.lon;
+      
+      if (hasChanged) {
+        console.log("📍 Changement via navigation");
+        const newLocation = {
+          lat: newLat,
+          lon: newLon,
+          source: 'navigation'
+        };
+        
+        setCurrentLocation(newLocation);
+        lastApiLocationRef.current = { lat: newLat, lon: newLon };
+        
+        // Rafraîchir immédiatement avec les nouvelles coordonnées
+        fetchWeatherData(newLat, newLon);
+      }
+    }
+  }, [params.lat, params.lon]);
+
+  const formatTimeSinceUpdate = (date) => {
+    if (!date) return "Jamais";
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins === 0) return "À l'instant";
+    if (diffMins === 1) return "Il y a 1 minute";
+    if (diffMins < 60) return `Il y a ${diffMins} minutes`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours === 1) return "Il y a 1 heure";
+    if (diffHours < 24) return `Il y a ${diffHours} heures`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return "Hier";
+    return `Il y a ${diffDays} jours`;
+  };
+
   const setDemoData = () => {
     const demoData = {
-      temperature: 32.5,
-      humidity: 68.2,
-      pressure: 1012.3,
-      rainfall: 0,
-      wind_speed: 8.5,
-      wind_direction: 120,
-      solar_radiation: 890,
-      uv_index: 11,
-      visibility: 15.8,
-      dew_point: 25.8,
-      battery_level: 78.5,
-      signal_strength: -62,
+      temperature: 22 + Math.random() * 10,
+      humidity: 40 + Math.random() * 40,
+      pressure: 1000 + Math.random() * 30,
+      rainfall: Math.random() > 0.8 ? Math.random() * 5 : 0,
+      wind_speed: Math.random() * 15,
+      wind_direction: Math.random() * 360,
+      solar_radiation: Math.random() * 1000,
+      uv_index: Math.floor(Math.random() * 12),
+      visibility: 5 + Math.random() * 15,
+      dew_point: 10 + Math.random() * 15,
+      battery_level: 20 + Math.random() * 80,
+      signal_strength: -50 - Math.random() * 50,
       device_status: "ONLINE",
-      feels_like: 36.1,
-      heat_index: 35.8,
-      wind_chill: 32
+      feels_like: 22 + Math.random() * 10,
+      heat_index: 22 + Math.random() * 10,
+      wind_chill: 22 + Math.random() * 10
     };
     setWeatherData(demoData);
+    setLastUpdate(new Date());
   };
 
   const handleLogin = () => {
     router.replace({
       pathname: "/login",
       params: {
-        lat: 18.533333,
-        lon: -72.333333,
+        lat: currentLocation.lat,
+        lon: currentLocation.lon,
         defaultCity: "Port-au-Prince"
       },
     });
   };
 
   const handleSearch = () => {
-    console.log("Searching for:", searchQuery);
+    if (!searchQuery.trim()) return;
+    
+    // Pour l'exemple, on simule une recherche de Port-au-Prince
+    if (searchQuery.toLowerCase().includes("port")) {
+      const newLocation = {
+        lat: 18.533333,
+        lon: -72.333333,
+        source: 'search'
+      };
+      
+      setCurrentLocation(newLocation);
+      lastApiLocationRef.current = { lat: newLocation.lat, lon: newLocation.lon };
+      fetchWeatherData(newLocation.lat, newLocation.lon);
+    }
   };
 
   const handleCardPress = (cardId, cardTitle) => {
@@ -215,24 +480,45 @@ const fetchStationData = async () => {
       params: { 
         cardId: cardId.toString(),
         cardTitle: cardTitle,
-        lat: lat,
-        lon: lon,
+        lat: currentLocation.lat,
+        lon: currentLocation.lon,
         weatherData: JSON.stringify(weatherData),
         stationData: JSON.stringify(stationData)
       }
     });
   };
 
-  // Données météo dynamiques basées sur les données du backend
+  const handleForceRefresh = () => {
+    console.log("🔄 Forcer rafraîchissement avec position actuelle");
+    onRefresh();
+  };
+
+  const handleUseCurrentLocation = async () => {
+    try {
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: LOCATION_ACCURACY,
+        timeout: 5000,
+      });
+      
+      if (location && location.coords) {
+        handleNewLocation(location);
+        Alert.alert(
+          "Position mise à jour",
+          "Votre position a été actualisée",
+          [{ text: "OK" }]
+        );
+      }
+    } catch (error) {
+      Alert.alert("Erreur", "Impossible d'obtenir votre position actuelle");
+    }
+  };
+
   const weatherCards = weatherData ? [
     [
       { 
         id: 1, 
         title: "💨 Vent", 
-        component: <WindSpeedIndicator 
-          speed={weatherData.wind_speed} 
-          direction={weatherData.wind_direction} 
-        />,
+        component: <WindSpeedIndicator speed={weatherData.wind_speed} direction={weatherData.wind_direction} />,
         subtitle: getWindDescription(weatherData.wind_speed * 3.6),
         value: `${(weatherData.wind_speed * 3.6).toFixed(1)} km/h`
       },
@@ -253,7 +539,7 @@ const fetchStationData = async () => {
       { 
         id: 4, 
         title: "☀️ UV", 
-        value: weatherData.uv_index.toString(), 
+        value: 2,// value: weatherData.uv_index.toString(), 
         subtitle: getUVDescription(weatherData.uv_index) 
       },
       { 
@@ -283,30 +569,23 @@ const fetchStationData = async () => {
     ]
   ] : [[], []];
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color="#ffffff" />
-        <Text style={styles.loadingText}>Chargement des données météo...</Text>
+        <Text style={styles.loadingText}>Initialisation...</Text>
+        <Text style={styles.coords}>
+          📍 {currentLocation.lat.toFixed(4)}, {currentLocation.lon.toFixed(4)}
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Fond */}
       <Svg style={StyleSheet.absoluteFill}>
         <Defs>
-          <RadialGradient
-            id="grad1"
-            cx="85%"
-            cy="15%"
-            rx="100%"
-            ry="40%"
-            fx="100%"
-            fy="85%"
-            gradientUnits="userSpaceOnUse"
-          >
+          <RadialGradient id="grad1" cx="85%" cy="15%" rx="100%" ry="40%" fx="100%" fy="85%" gradientUnits="userSpaceOnUse">
             <Stop offset="0%" stopColor="#ffffff" stopOpacity="0.50" />
             <Stop offset="25%" stopColor="#e8f4ff" stopOpacity="0.18" />
             <Stop offset="50%" stopColor="#c8e4ff" stopOpacity="0.12" />
@@ -314,16 +593,7 @@ const fetchStationData = async () => {
             <Stop offset="100%" stopColor="#4facfe" stopOpacity="0" />
           </RadialGradient>
           
-          <RadialGradient
-            id="grad2"
-            cx="15%"
-            cy="85%"
-            rx="100%"
-            ry="45%"
-            fx="15%"
-            fy="85%"
-            gradientUnits="userSpaceOnUse"
-          >
+          <RadialGradient id="grad2" cx="15%" cy="85%" rx="100%" ry="45%" fx="15%" fy="85%" gradientUnits="userSpaceOnUse">
             <Stop offset="0%" stopColor="#ffffff" stopOpacity="0.50" />
             <Stop offset="30%" stopColor="#e3f2ff" stopOpacity="0.14" />
             <Stop offset="60%" stopColor="#b8dcff" stopOpacity="0.08" />
@@ -331,16 +601,7 @@ const fetchStationData = async () => {
             <Stop offset="100%" stopColor="#4facfe" stopOpacity="0" />
           </RadialGradient>
           
-          <RadialGradient
-            id="grad3"
-            cx="35%"
-            cy="50%"
-            rx="100%"
-            ry="40%"
-            fx="35%"
-            fy="50%"
-            gradientUnits="userSpaceOnUse"
-          >
+          <RadialGradient id="grad3" cx="35%" cy="50%" rx="100%" ry="40%" fx="35%" fy="50%" gradientUnits="userSpaceOnUse">
             <Stop offset="0%" stopColor="#ffffff" stopOpacity="0.50" />
             <Stop offset="20%" stopColor="#f0f8ff" stopOpacity="0.13" />
             <Stop offset="45%" stopColor="#d9edff" stopOpacity="0.08" />
@@ -353,22 +614,35 @@ const fetchStationData = async () => {
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#grad1)" />
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#grad2)" />
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#grad3)" />
-        <Rect 
-          x="0" 
-          y="0" 
-          width="100%" 
-          height="100%" 
-          fill="rgba(255, 255, 255, 0.02)" 
-        />
+        <Rect x="0" y="0" width="100%" height="100%" fill="rgba(255, 255, 255, 0.02)" />
       </Svg>
 
-      {/* En-tête */}
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.appName}>URGmetEO</Text>
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginText}>Login</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={[styles.gpsStatus, locationWatchRef.current && styles.gpsActive]} 
+              onPress={handleUseCurrentLocation}
+            >
+              <Text style={styles.gpsStatusText}>
+                {locationWatchRef.current ? "📍 ON" : "📍 OFF"}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.pollingButton, !pollingEnabled && styles.pollingButtonDisabled]} 
+              onPress={() => setPollingEnabled(!pollingEnabled)}
+            >
+              <Text style={styles.pollingButtonText}>
+                {pollingEnabled ? "🔄 ON" : "⏸️ OFF"}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+              <Text style={styles.loginText}>Login</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.searchContainer}>
@@ -385,24 +659,63 @@ const fetchStationData = async () => {
               <Text style={styles.searchButtonText}>🔍</Text>
             </TouchableOpacity>
           </View>
+          
+          <View style={styles.positionInfo}>
+            <TouchableOpacity onPress={handleUseCurrentLocation}>
+              <Text style={styles.positionText}>
+                📍 {currentLocation.lat.toFixed(6)}, {currentLocation.lon.toFixed(6)}
+                {locationAccuracy && ` (±${Math.round(locationAccuracy)}m)`}
+              </Text>
+              <Text style={styles.positionSubtext}>
+                Source: {currentLocation.source} • 
+                Dernier check: {lastLocationCheck ? formatTimeSinceUpdate(lastLocationCheck) : 'Jamais'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.updateInfoContainer}>
+            {error ? (
+              <Text style={styles.errorText}>{error}</Text>
+            ) : (
+              <Text style={styles.updateText}>
+                Météo: {formatTimeSinceUpdate(lastUpdate)}
+                {pollingEnabled && ` • Auto: ${POLLING_INTERVAL/1000}s`}
+              </Text>
+            )}
+            
+            <View style={styles.refreshButtons}>
+              <TouchableOpacity style={styles.smallRefreshButton} onPress={handleForceRefresh}>
+                <Text style={styles.refreshButtonText}>🔄</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.smallRefreshButton} onPress={onRefresh} disabled={refreshing}>
+                <Text style={styles.refreshButtonText}>{refreshing ? "⏳" : "↻"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </View>
 
-      {/* Section des cartes météo */}
-      <View style={styles.weatherCardsSection}>
-        <Text style={styles.cardsSectionTitle}>Détails météo</Text>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          style={styles.cardsScrollView}
-          contentContainerStyle={styles.cardsContentContainer}
-        >
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#ffffff"]}
+            tintColor="#ffffff"
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.weatherCardsSection}>
           <View style={styles.mainContent}>
             <Text style={styles.city}>
               {stationData ? stationData.description : "Météo locale"}
             </Text>
-            <Text style={styles.coords}>
-              📍 {Number(lat).toFixed(2)}, {Number(lon).toFixed(2)}
+            <Text style={styles.distanceInfo}>
+              {stationData && stationData.distance ? 
+                `Distance: ${stationData.distance.toFixed(1)} km` : 
+                ""}
             </Text>
             <Text style={styles.temp}>
               {weatherData ? `${weatherData.temperature.toFixed(1)}°C` : "--°C"}
@@ -410,17 +723,17 @@ const fetchStationData = async () => {
             
             <View style={styles.todayTempContainer}>
               <View style={styles.todayTempCard}>
-                <Text style={styles.todayTempLabel}>Aujourd'hui</Text>
+                <Text style={styles.todayTempLabel}>Conditions actuelles</Text>
                 <Text style={styles.todayTempDescription}>
                   {getWeatherDescription(weatherData)}
                 </Text>
                 {weatherData && (
                   <>
                     <Text style={styles.additionalInfo}>
-                      Max: {(weatherData.temperature + 2).toFixed(1)}°C
+                      Ressenti: {weatherData.feels_like.toFixed(1)}°C
                     </Text>
                     <Text style={styles.additionalInfo}>
-                      Min: {(weatherData.temperature - 2).toFixed(1)}°C
+                      Humidité: {weatherData.humidity.toFixed(1)}%
                     </Text>
                   </>
                 )}
@@ -428,6 +741,8 @@ const fetchStationData = async () => {
             </View>
           </View>
 
+          <Text style={styles.cardsSectionTitle}>Détails météo</Text>
+          
           <View style={styles.cardsContainer}>
             <View style={styles.cardRow}>
               {weatherCards[0].map((item) => (
@@ -438,11 +753,7 @@ const fetchStationData = async () => {
                   activeOpacity={0.7}
                 >
                   <Text style={styles.cardTitle}>{item.title}</Text>
-                  {item.component ? (
-                    item.component
-                  ) : (
-                    <Text style={styles.cardValue}>{item.value}</Text>
-                  )}
+                  {item.component ? item.component : <Text style={styles.cardValue}>{item.value}</Text>}
                   <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
                 </TouchableOpacity>
               ))}
@@ -463,8 +774,64 @@ const fetchStationData = async () => {
               ))}
             </View>
           </View>
-        </ScrollView>
-      </View>
+          
+          <View style={styles.debugSection}>
+            <Text style={styles.debugTitle}>Statut du système</Text>
+            
+            <View style={styles.debugRow}>
+              <Text style={styles.debugLabel}>Position actuelle:</Text>
+              <Text style={styles.debugValue}>
+                {currentLocation.lat.toFixed(6)}, {currentLocation.lon.toFixed(6)}
+              </Text>
+            </View>
+            
+            <View style={styles.debugRow}>
+              <Text style={styles.debugLabel}>Dernière API:</Text>
+              <Text style={styles.debugValue}>
+                {lastApiLocationRef.current ? 
+                  `${lastApiLocationRef.current.lat.toFixed(6)}, ${lastApiLocationRef.current.lon.toFixed(6)}` : 
+                  'Aucune'}
+              </Text>
+            </View>
+            
+            <View style={styles.debugRow}>
+              <Text style={styles.debugLabel}>Suivi GPS:</Text>
+              <Text style={[styles.debugValue, locationWatchRef.current ? styles.debugActive : styles.debugInactive]}>
+                {locationWatchRef.current ? 'ACTIF' : 'INACTIF'}
+              </Text>
+            </View>
+            
+            <View style={styles.debugRow}>
+              <Text style={styles.debugLabel}>Polling météo:</Text>
+              <Text style={[styles.debugValue, pollingEnabled ? styles.debugActive : styles.debugInactive]}>
+                {pollingEnabled ? 'ACTIF' : 'INACTIF'}
+              </Text>
+            </View>
+            
+            <TouchableOpacity style={styles.debugButton} onPress={() => {
+              Alert.alert(
+                "Forcer mise à jour",
+                "Utiliser la position actuelle pour rafraîchir les données?",
+                [
+                  { text: "Annuler", style: "cancel" },
+                  { 
+                    text: "OK", 
+                    onPress: () => {
+                      lastApiLocationRef.current = { 
+                        lat: currentLocation.lat, 
+                        lon: currentLocation.lon 
+                      };
+                      fetchWeatherData(currentLocation.lat, currentLocation.lon);
+                    }
+                  }
+                ]
+              );
+            }}>
+              <Text style={styles.debugButtonText}>Forcer rafraîchissement API</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -483,6 +850,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 16,
   },
+  scrollView: {
+    flex: 1,
+  },
   header: {
     position: "absolute",
     top: 50,
@@ -497,6 +867,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 15,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  gpsStatus: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    marginRight: 8,
+  },
+  gpsActive: {
+    backgroundColor: "rgba(76, 217, 100, 0.2)",
+    borderColor: "rgba(76, 217, 100, 0.4)",
+  },
+  gpsStatusText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 11,
+  },
+  pollingButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    marginRight: 8,
+  },
+  pollingButtonDisabled: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  pollingButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 11,
+  },
   appName: {
     fontSize: 24,
     fontWeight: "bold",
@@ -507,16 +917,16 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     backgroundColor: "rgba(255, 255, 255, 0.15)",
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 6,
+    borderRadius: 15,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.3)",
   },
   loginText: {
     color: "#fff",
     fontWeight: "600",
-    fontSize: 14,
+    fontSize: 12,
   },
   searchContainer: {
     width: "100%",
@@ -552,6 +962,218 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: "#fff",
     opacity: 0.8,
+  },
+  positionInfo: {
+    marginTop: 8,
+    marginBottom: 5,
+  },
+  positionText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
+    fontFamily: 'monospace',
+  },
+  positionSubtext: {
+    color: "rgba(255, 255, 255, 0.6)",
+    fontSize: 10,
+    marginTop: 2,
+  },
+  updateInfoContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 5,
+    paddingHorizontal: 5,
+  },
+  updateText: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 12,
+    flex: 1,
+  },
+  errorText: {
+    color: "#ff6b6b",
+    fontSize: 12,
+    flex: 1,
+  },
+  refreshButtons: {
+    flexDirection: "row",
+  },
+  smallRefreshButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 5,
+  },
+  refreshButtonText: {
+    color: "#fff",
+    fontSize: 16,
+  },
+  weatherCardsSection: {
+    marginTop: 200,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  cardsSectionTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 10,
+    marginLeft: 5,
+  },
+  cardsContainer: {
+    flexDirection: "column",
+  },
+  cardRow: {
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  weatherCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 15,
+    padding: 12,
+    marginRight: 12,
+    width: 150,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 140,
+  },
+  cardTitle: {
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 12,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  cardValue: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginVertical: 5,
+  },
+  cardSubtitle: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 10,
+    textAlign: "center",
+    marginTop: 5,
+  },
+  mainContent: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 30,
+  },
+  city: {
+    fontSize: 22,
+    color: "#fff",
+    fontWeight: "bold",
+    textAlign: 'center',
+    textShadowColor: "rgba(0, 0, 0, 0.2)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
+    marginBottom: 5,
+  },
+  distanceInfo: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    marginBottom: 10,
+  },
+  coords: {
+    color: "#fff",
+    marginTop: 10,
+    opacity: 0.9,
+    textShadowColor: "rgba(0, 0, 0, 0.15)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 1,
+  },
+  temp: {
+    fontSize: 72,
+    fontWeight: "bold",
+    color: "#fff",
+    marginVertical: 10,
+    textShadowColor: "rgba(0, 0, 0, 0.25)",
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 3,
+  },
+  todayTempContainer: {
+    marginBottom: 10,
+    marginTop: 10,
+  },
+  todayTempCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 15,
+    padding: 15,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    width: 250,
+  },
+  todayTempLabel: {
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 16,
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  todayTempDescription: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 5,
+  },
+  additionalInfo: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    marginTop: 2,
+  },
+  debugSection: {
+    marginTop: 30,
+    padding: 15,
+    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  debugTitle: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "bold",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  debugRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 5,
+  },
+  debugLabel: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 11,
+  },
+  debugValue: {
+    color: "#fff",
+    fontSize: 11,
+    fontFamily: 'monospace',
+  },
+  debugActive: {
+    color: "#4cd964",
+  },
+  debugInactive: {
+    color: "#ff3b30",
+  },
+  debugButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 10,
+    alignItems: "center",
+  },
+  debugButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
   },
   windContainer: {
     alignItems: "center",
@@ -603,127 +1225,5 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.7)",
     fontSize: 10,
     marginTop: 2,
-  },
-  todayTempContainer: {
-    marginBottom: 10,
-    marginTop: 10,
-  },
-  todayTempCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 15,
-    padding: 15,
-    borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    alignItems: "center",
-    width: 220,
-  },
-  todayTempLabel: {
-    color: "rgba(255, 255, 255, 0.9)",
-    fontSize: 16,
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  todayTempDescription: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 5,
-  },
-  additionalInfo: {
-    color: "rgba(255, 255, 255, 0.8)",
-    fontSize: 12,
-    marginTop: 2,
-  },
-  weatherCardsSection: {
-    position: "absolute",
-    top: 180,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    paddingLeft: 20,
-  },
-  cardsSectionTitle: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 10,
-    marginLeft: 5,
-  },
-  cardsScrollView: {
-    flexGrow: 0,
-  },
-  cardsContentContainer: {
-    paddingRight: 20,
-  },
-  cardsContainer: {
-    flexDirection: "column",
-  },
-  cardRow: {
-    flexDirection: "row",
-    marginBottom: 12,
-  },
-  weatherCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderRadius: 15,
-    padding: 12,
-    marginRight: 12,
-    width: 150,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 140,
-  },
-  cardTitle: {
-    color: "rgba(255, 255, 255, 0.9)",
-    fontSize: 12,
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  cardValue: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginVertical: 5,
-  },
-  cardSubtitle: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 10,
-    textAlign: "center",
-    marginTop: 5,
-  },
-  mainContent: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    marginTop: 100,
-  },
-  city: {
-    fontSize: 22,
-    color: "#fff",
-    fontWeight: "bold",
-    textAlign: 'center',
-    textShadowColor: "rgba(0, 0, 0, 0.2)",
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-    marginBottom: 5,
-  },
-  coords: {
-    color: "#fff",
-    marginTop: 5,
-    opacity: 0.9,
-    textShadowColor: "rgba(0, 0, 0, 0.15)",
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 1,
-  },
-  temp: {
-    fontSize: 72,
-    fontWeight: "bold",
-    color: "#fff",
-    marginVertical: 10,
-    textShadowColor: "rgba(0, 0, 0, 0.25)",
-    textShadowOffset: { width: 2, height: 2 },
-    textShadowRadius: 3,
   },
 });
