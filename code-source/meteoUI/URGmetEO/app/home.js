@@ -18,6 +18,7 @@ import Svg, { Circle, Defs, Line, RadialGradient, Rect, Stop } from "react-nativ
 import { apiClient } from './api';
 
 const { width } = Dimensions.get('window');
+const HEADER_HEIGHT = 250;
 
 // Configuration
 const POLLING_INTERVAL = 30000; // 30 secondes pour les données météo
@@ -68,9 +69,14 @@ const getWeatherDescription = (data) => {
 };
 
 const WindSpeedIndicator = ({ speed = 0, direction = 0 }) => {
+
+   const safeSpeed = safeSpeed || 0;
+  const safeDirection = direction || 0;
+
+
   const speedKmh = speed * 3.6;
   const windLevel = Math.min(4, Math.floor(speedKmh / 10));
-  const directionCardinal = getCardinalDirection(direction);
+  const directionCardinal = getCardinalDirection(safeDirection);
   
   return (
     <View style={styles.windContainer}>
@@ -98,10 +104,10 @@ const WindSpeedIndicator = ({ speed = 0, direction = 0 }) => {
             stroke="#ffffff"
             strokeWidth="2"
             strokeLinecap="round"
-            transform={`rotate(${direction}, 30, 30)`}
+            transform={`rotate(${safeDirection}, 30, 30)`}
           />
           <Circle cx="30" cy="12" r="3" fill="#ffffff" 
-            transform={`rotate(${direction}, 30, 30)`}
+            transform={`rotate(${safeDirection}, 30, 30)`}
           />
           <Circle cx="30" cy="30" r="3" fill="#ffffff" />
         </Svg>
@@ -133,6 +139,7 @@ export default function Home() {
   });
   const [locationAccuracy, setLocationAccuracy] = useState(null);
   const [lastLocationCheck, setLastLocationCheck] = useState(null);
+  const [activeSection, setActiveSection] = useState(0);
   
   const pollingRef = useRef(null);
   const locationWatchRef = useRef(null);
@@ -140,6 +147,19 @@ export default function Home() {
   const lastApiLocationRef = useRef(null); // Dernière position utilisée pour l'API
   const appStateRef = useRef(AppState.currentState);
   const router = useRouter();
+
+
+  // Fonction utilitaire pour convertir en nombre avec valeur par défaut
+const safeNumber = (value, defaultValue = 0) => {
+  const num = Number(value);
+  return isNaN(num) ? defaultValue : num;
+};
+
+// Fonction utilitaire pour formater avec toFixed de manière sécurisée
+const safeToFixed = (value, digits = 1, defaultValue = 0) => {
+  const num = safeNumber(value, defaultValue);
+  return num.toFixed(digits);
+};
 
   // 1. Initialisation automatique du suivi GPS
   const initializeLocationTracking = async () => {
@@ -204,6 +224,8 @@ export default function Home() {
     
     if (shouldRefresh) {
       console.log("📍 Position changée, rafraîchissement des données...");
+      console.log("lastApiLocationRef.current.lat:", lastApiLocationRef.current.lat);
+       console.log("newCoords.lat:", newCoords.lat);
       lastApiLocationRef.current = { lat: newCoords.lat, lon: newCoords.lon };
       fetchWeatherData(newCoords.lat, newCoords.lon);
     }
@@ -230,27 +252,46 @@ export default function Home() {
     try {
       setError(null);
       
-      console.log(`📡 Requête météo pour: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+      console.log(`📡 Requête météo pour: ${safeToFixed(latitude, 6)}, ${safeToFixed(longitude, 6)}`);
       
       const response = await apiClient.get('/api/geo/nearest', {
         params: {
-          lat: latitude,
-          lon: longitude
+          lat: safeNumber(latitude),
+        lon: safeNumber(longitude)
         },
       });
       
       const data = response.data;
       
-      if (data.station && data.data) {
+      if (data && data.station && data.data) {
+
+
+ // S'assurer que toutes les propriétés nécessaires existent
+      const processedData = {
+        ...data.data,
+        temperature: safeNumber(data.data.temperature, 22),
+        humidity: safeNumber(data.data.humidity, 50),
+        pressure: safeNumber(data.data.pressure, 1013),
+        wind_speed: safeNumber(data.data.wind_speed, 0),
+        wind_direction: safeNumber(data.data.wind_direction, 0),
+        feels_like: safeNumber(data.data.feels_like, data.data.temperature || 22),
+        dew_point: safeNumber(data.data.dew_point, 15),
+        uv_index: safeNumber(data.data.uv_index, 0),
+        solar_radiation: safeNumber(data.data.solar_radiation, 0),
+        battery_level: safeNumber(data.data.battery_level, 50),
+      };
+
         setStationData(data.station);
-        setWeatherData(data.data);
+        setWeatherData(processedData);
         setLastUpdate(new Date());
         retryCountRef.current = 0;
         console.log("✅ Données météo mises à jour");
         
         // Mettre à jour la référence de la dernière position utilisée
         lastApiLocationRef.current = { lat: latitude, lon: longitude };
-      }
+      } else {
+      throw new Error("Données incomplètes de l'API");
+    }
     } catch (error) {
       console.error('❌ Erreur API météo:', error);
       retryCountRef.current += 1;
@@ -282,10 +323,11 @@ export default function Home() {
     }
     
     pollingRef.current = setInterval(() => {
-      if (pollingEnabled) {
+      if (pollingEnabled && lastApiLocationRef.current) {
         console.log("🔄 Rafraîchissement automatique des données météo");
         // TOUJOURS utiliser currentLocation qui est à jour
-        fetchWeatherData(currentLocation.lat, currentLocation.lon);
+      
+        fetchWeatherData(lastApiLocationRef.current.lat, lastApiLocationRef.current.lon);
       }
     }, POLLING_INTERVAL);
   };
@@ -512,62 +554,61 @@ export default function Home() {
       Alert.alert("Erreur", "Impossible d'obtenir votre position actuelle");
     }
   };
-
-  const weatherCards = weatherData ? [
-    [
-      { 
-        id: 1, 
-        title: "💨 Vent", 
-        component: <WindSpeedIndicator speed={weatherData.wind_speed} direction={weatherData.wind_direction} />,
-        subtitle: getWindDescription(weatherData.wind_speed * 3.6),
-        value: `${(weatherData.wind_speed * 3.6).toFixed(1)} km/h`
-      },
-      { 
-        id: 2, 
-        title: "💧 Humidité", 
-        value: `${weatherData.humidity.toFixed(1)}%`, 
-        subtitle: weatherData.humidity > 70 ? "Élevée" : "Confortable" 
-      },
-      { 
-        id: 3, 
-        title: "📊 Pression", 
-        value: `${weatherData.pressure.toFixed(1)} hPa`, 
-        subtitle: weatherData.pressure > 1013 ? "Haute" : "Normale" 
-      },
-    ],
-    [
-      { 
-        id: 4, 
-        title: "☀️ UV", 
-        value: 2,// value: weatherData.uv_index.toString(), 
-        subtitle: getUVDescription(weatherData.uv_index) 
-      },
-      { 
-        id: 5, 
-        title: "🌡️ Ressenti", 
-        value: `${weatherData.feels_like.toFixed(1)}°C`, 
-        subtitle: "Indice thermique" 
-      },
-      { 
-        id: 6, 
-        title: "💧 Rosée", 
-        value: `${weatherData.dew_point.toFixed(1)}°C`, 
-        subtitle: "Point de rosée" 
-      },
-      { 
-        id: 7, 
-        title: "☀️ Radiation", 
-        value: `${weatherData.solar_radiation} W/m²`, 
-        subtitle: "Solaire" 
-      },
-      { 
-        id: 8, 
-        title: "🔋 Batterie", 
-        value: `${weatherData.battery_level}%`, 
-        subtitle: "Niveau batterie" 
-      },
-    ]
-  ] : [[], []];
+const weatherCards = weatherData ? [
+  [
+    { 
+      id: 1, 
+      title: "💨 Vent", 
+      component: <WindSpeedIndicator speed={weatherData.wind_speed || 0} direction={weatherData.wind_direction || 0} />,
+      subtitle: getWindDescription((weatherData.wind_speed || 0) * 3.6),
+      value: `${((weatherData.wind_speed || 0) * 3.6).toFixed(1)} km/h`
+    },
+    { 
+      id: 2, 
+      title: "💧 Humidité", 
+      value: `${(weatherData.humidity || 0).toFixed(1)}%`, 
+      subtitle: (weatherData.humidity || 0) > 70 ? "Élevée" : "Confortable" 
+    },
+    { 
+      id: 3, 
+      title: "📊 Pression", 
+      value: `${(weatherData.pressure || 0).toFixed(1)} hPa`, 
+      subtitle: (weatherData.pressure || 0) > 1013 ? "Haute" : "Normale" 
+    },
+  ],
+  [
+    { 
+      id: 4, 
+      title: "☀️ UV", 
+      value: (weatherData.uv_index || 0).toString(), 
+      subtitle: getUVDescription(weatherData.uv_index || 0) 
+    },
+    { 
+      id: 5, 
+      title: "🌡️ Ressenti", 
+      value: `${(weatherData.feels_like || 0).toFixed(1)}°C`, 
+      subtitle: "Indice thermique" 
+    },
+    { 
+      id: 6, 
+      title: "💧 Rosée", 
+      value: `${(weatherData.dew_point || 0).toFixed(1)}°C`, 
+      subtitle: "Point de rosée" 
+    },
+    { 
+      id: 7, 
+      title: "☀️ Radiation", 
+      value: `${(weatherData.solar_radiation || 0)} W/m²`, 
+      subtitle: "Solaire" 
+    },
+    { 
+      id: 8, 
+      title: "🔋 Batterie", 
+      value: `${(weatherData.battery_level || 0)}%`, 
+      subtitle: "Niveau batterie" 
+    },
+  ]
+] : [[], []];
 
   if (loading && !refreshing) {
     return (
@@ -575,7 +616,7 @@ export default function Home() {
         <ActivityIndicator size="large" color="#ffffff" />
         <Text style={styles.loadingText}>Initialisation...</Text>
         <Text style={styles.coords}>
-          📍 {currentLocation.lat.toFixed(4)}, {currentLocation.lon.toFixed(4)}
+            📍 {safeToFixed(currentLocation.lat, 4)}, {safeToFixed(currentLocation.lon, 4)}
         </Text>
       </View>
     );
@@ -616,97 +657,131 @@ export default function Home() {
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#grad3)" />
         <Rect x="0" y="0" width="100%" height="100%" fill="rgba(255, 255, 255, 0.02)" />
       </Svg>
-
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.appName}>URGmetEO</Text>
-          <View style={styles.headerActions}>
-            <TouchableOpacity 
-              style={[styles.gpsStatus, locationWatchRef.current && styles.gpsActive]} 
-              onPress={handleUseCurrentLocation}
-            >
-              <Text style={styles.gpsStatusText}>
-                {locationWatchRef.current ? "📍 ON" : "📍 OFF"}
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.pollingButton, !pollingEnabled && styles.pollingButtonDisabled]} 
-              onPress={() => setPollingEnabled(!pollingEnabled)}
-            >
-              <Text style={styles.pollingButtonText}>
-                {pollingEnabled ? "🔄 ON" : "⏸️ OFF"}
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-              <Text style={styles.loginText}>Login</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Rechercher une ville..."
-              placeholderTextColor="#ffffffb3"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onSubmitEditing={handleSearch}
-            />
-            <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-              <Text style={styles.searchButtonText}>🔍</Text>
-            </TouchableOpacity>
-          </View>
+// Modifiez le JSX du header pour inclure tout le contenu
+<View style={styles.header}>
+   {/* On réplique le même fond SVG mais seulement pour le header */}
+      <Svg style={StyleSheet.absoluteFill}>
+        <Defs>
+          <RadialGradient id="headerGrad1" cx="85%" cy="15%" rx="100%" ry="40%" fx="100%" fy="85%" gradientUnits="userSpaceOnUse">
+            <Stop offset="0%" stopColor="#ffffff" stopOpacity="0.50" />
+            <Stop offset="25%" stopColor="#e8f4ff" stopOpacity="0.18" />
+            <Stop offset="50%" stopColor="#c8e4ff" stopOpacity="0.12" />
+            <Stop offset="75%" stopColor="#9fd2ff" stopOpacity="0.06" />
+            <Stop offset="100%" stopColor="#4facfe" stopOpacity="0" />
+          </RadialGradient>
           
-          <View style={styles.positionInfo}>
-            <TouchableOpacity onPress={handleUseCurrentLocation}>
-              <Text style={styles.positionText}>
-                📍 {currentLocation.lat.toFixed(6)}, {currentLocation.lon.toFixed(6)}
-                {locationAccuracy && ` (±${Math.round(locationAccuracy)}m)`}
-              </Text>
-              <Text style={styles.positionSubtext}>
-                Source: {currentLocation.source} • 
-                Dernier check: {lastLocationCheck ? formatTimeSinceUpdate(lastLocationCheck) : 'Jamais'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.updateInfoContainer}>
-            {error ? (
-              <Text style={styles.errorText}>{error}</Text>
-            ) : (
-              <Text style={styles.updateText}>
-                Météo: {formatTimeSinceUpdate(lastUpdate)}
-                {pollingEnabled && ` • Auto: ${POLLING_INTERVAL/1000}s`}
-              </Text>
-            )}
-            
-            <View style={styles.refreshButtons}>
-              <TouchableOpacity style={styles.smallRefreshButton} onPress={handleForceRefresh}>
-                <Text style={styles.refreshButtonText}>🔄</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.smallRefreshButton} onPress={onRefresh} disabled={refreshing}>
-                <Text style={styles.refreshButtonText}>{refreshing ? "⏳" : "↻"}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          <RadialGradient id="headerGrad2" cx="15%" cy="85%" rx="100%" ry="45%" fx="15%" fy="85%" gradientUnits="userSpaceOnUse">
+            <Stop offset="0%" stopColor="#ffffff" stopOpacity="0.50" />
+            <Stop offset="30%" stopColor="#e3f2ff" stopOpacity="0.14" />
+            <Stop offset="60%" stopColor="#b8dcff" stopOpacity="0.08" />
+            <Stop offset="90%" stopColor="#8ac8ff" stopOpacity="0.02" />
+            <Stop offset="100%" stopColor="#4facfe" stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        
+        <Rect x="0" y="0" width="100%" height="100%" fill="#4facfe" />
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#headerGrad1)" />
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#headerGrad2)" />
+        <Rect x="0" y="0" width="100%" height="100%" fill="rgba(255, 255, 255, 0.02)" />
+      </Svg>
+      
+  
+  {/* Contenu complet du header */}
+  <View style={styles.headerContent}>
+    <View style={styles.headerTop}>
+      <Text style={styles.appName}>URGmetEO</Text>
+      <View style={styles.headerActions}>
+        <TouchableOpacity 
+          style={[styles.gpsStatus, locationWatchRef.current && styles.gpsActive]} 
+          onPress={handleUseCurrentLocation}
+        >
+          <Text style={styles.gpsStatusText}>
+            {locationWatchRef.current ? "📍 ON" : "📍 OFF"}
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.pollingButton, !pollingEnabled && styles.pollingButtonDisabled]} 
+          onPress={() => setPollingEnabled(!pollingEnabled)}
+        >
+          <Text style={styles.pollingButtonText}>
+            {pollingEnabled ? "🔄 ON" : "⏸️ OFF"}
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+          <Text style={styles.loginText}>Login</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+
+    <View style={styles.searchContainer}>
+      <View style={styles.searchBar}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Rechercher une ville..."
+          placeholderTextColor="#ffffffb3"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={handleSearch}
+        />
+        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+          <Text style={styles.searchButtonText}>🔍</Text>
+        </TouchableOpacity>
+      </View>
+      
+      <View style={styles.positionInfo}>
+        <TouchableOpacity onPress={handleUseCurrentLocation}>
+          <Text style={styles.positionText}>
+            📍 {currentLocation.lat.toFixed(6)}, {currentLocation.lon.toFixed(6)}
+            {locationAccuracy && ` (±${Math.round(locationAccuracy)}m)`}
+          </Text>
+          <Text style={styles.positionSubtext}>
+            Source: {currentLocation.source} • 
+            Dernier check: {lastLocationCheck ? formatTimeSinceUpdate(lastLocationCheck) : 'Jamais'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      
+      <View style={styles.updateInfoContainer}>
+        {error ? (
+          <Text style={styles.errorText}>{error}</Text>
+        ) : (
+          <Text style={styles.updateText}>
+            Météo: {formatTimeSinceUpdate(lastUpdate)}
+            {pollingEnabled && ` • Auto: ${POLLING_INTERVAL/1000}s`}
+          </Text>
+        )}
+        
+        <View style={styles.refreshButtons}>
+          <TouchableOpacity style={styles.smallRefreshButton} onPress={handleForceRefresh}>
+            <Text style={styles.refreshButtonText}>🔄</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.smallRefreshButton} onPress={onRefresh} disabled={refreshing}>
+            <Text style={styles.refreshButtonText}>{refreshing ? "⏳" : "↻"}</Text>
+          </TouchableOpacity>
         </View>
       </View>
+    </View>
+  </View>
+</View>
 
       <ScrollView 
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             colors={["#ffffff"]}
             tintColor="#ffffff"
+             progressViewOffset={HEADER_HEIGHT - 20}
           />
         }
         showsVerticalScrollIndicator={false}
       >
+
+        <View style={styles.headerSpacer} />
         <View style={styles.weatherCardsSection}>
           <View style={styles.mainContent}>
             <Text style={styles.city}>
@@ -718,7 +793,7 @@ export default function Home() {
                 ""}
             </Text>
             <Text style={styles.temp}>
-              {weatherData ? `${weatherData.temperature.toFixed(1)}°C` : "--°C"}
+             {weatherData ? `${safeToFixed(weatherData.temperature, 1)}°C` : "--°C"}
             </Text>
             
             <View style={styles.todayTempContainer}>
@@ -730,10 +805,10 @@ export default function Home() {
                 {weatherData && (
                   <>
                     <Text style={styles.additionalInfo}>
-                      Ressenti: {weatherData.feels_like.toFixed(1)}°C
+                       Ressenti: {safeToFixed(weatherData.feels_like, 1)}°C
                     </Text>
                     <Text style={styles.additionalInfo}>
-                      Humidité: {weatherData.humidity.toFixed(1)}%
+                      Humidité: {safeToFixed(weatherData.humidity, 1)}%
                     </Text>
                   </>
                 )}
@@ -743,37 +818,61 @@ export default function Home() {
 
           <Text style={styles.cardsSectionTitle}>Détails météo</Text>
           
-          <View style={styles.cardsContainer}>
-            <View style={styles.cardRow}>
-              {weatherCards[0].map((item) => (
-                <TouchableOpacity 
-                  key={item.id} 
-                  style={styles.weatherCard}
-                  onPress={() => handleCardPress(item.id, item.title)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  {item.component ? item.component : <Text style={styles.cardValue}>{item.value}</Text>}
-                  <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            
-            <View style={styles.cardRow}>
-              {weatherCards[1].map((item) => (
-                <TouchableOpacity 
-                  key={item.id} 
-                  style={styles.weatherCard}
-                  onPress={() => handleCardPress(item.id, item.title)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  <Text style={styles.cardValue}>{item.value}</Text>
-                  <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
+       
+// Dans le JSX
+<View style={styles.cardsContainer}>
+  <View style={styles.sectionHeader}>
+    <Text style={styles.sectionTitle}>Détails météo</Text>
+    <View style={styles.scrollIndicators}>
+      <View style={[styles.scrollDot, activeSection === 0 && styles.scrollDotActive]} />
+      <View style={[styles.scrollDot, activeSection === 1 && styles.scrollDotActive]} />
+    </View>
+  </View>
+  
+  {/* Première section */}
+  <ScrollView 
+    horizontal
+    showsHorizontalScrollIndicator={false}
+    style={styles.horizontalScrollView}
+    contentContainerStyle={styles.horizontalScrollContent}
+    onScroll={(event) => {
+      const scrollX = event.nativeEvent.contentOffset.x;
+      // Logique pour déterminer quelle section est visible
+      if (scrollX < 500) {
+        setActiveSection(0);
+      } else {
+        setActiveSection(1);
+      }
+    }}
+    scrollEventThrottle={16}
+  >
+    {weatherCards[0].map((item) => (
+      <TouchableOpacity 
+        key={item.id} 
+        style={styles.weatherCard}
+        onPress={() => handleCardPress(item.id, item.title)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.cardTitle}>{item.title}</Text>
+        {item.component ? item.component : <Text style={styles.cardValue}>{item.value}</Text>}
+        <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
+      </TouchableOpacity>
+    ))}
+    
+    {weatherCards[1].map((item) => (
+      <TouchableOpacity 
+        key={item.id} 
+        style={styles.weatherCard}
+        onPress={() => handleCardPress(item.id, item.title)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.cardTitle}>{item.title}</Text>
+        <Text style={styles.cardValue}>{item.value}</Text>
+        <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
+      </TouchableOpacity>
+    ))}
+  </ScrollView>
+</View>
           
           <View style={styles.debugSection}>
             <Text style={styles.debugTitle}>Statut du système</Text>
@@ -853,13 +952,17 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  // Changer le header pour qu'il ait un fond solide
   header: {
     position: "absolute",
-    top: 50,
+    top: 0,
     left: 0,
     right: 0,
     zIndex: 10,
-    paddingHorizontal: 20,
+    paddingTop: 50, // Pour la barre de statut
+    backgroundColor: "#4facfe", // Fond solide
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
   headerTop: {
     flexDirection: "row",
@@ -889,6 +992,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 11,
   },
+   horizontalScrollContent: {
+    paddingHorizontal: 15, // Espace sur les côtés
+    paddingVertical: 5,
+  },
   pollingButton: {
     backgroundColor: "rgba(255, 255, 255, 0.15)",
     paddingHorizontal: 12,
@@ -915,6 +1022,10 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 3,
   },
+  scrollContent: {
+    paddingBottom: 80, // Padding en bas
+    marginTop: 60,
+  },
   loginButton: {
     backgroundColor: "rgba(255, 255, 255, 0.15)",
     paddingHorizontal: 15,
@@ -930,7 +1041,7 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     width: "100%",
-    marginBottom: 20,
+    marginBottom: 5,
   },
   searchBar: {
     flexDirection: "row",
@@ -947,6 +1058,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 15, // Espace en bas du header
   },
   searchInput: {
     flex: 1,
@@ -973,6 +1088,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontFamily: 'monospace',
   },
+  sectionHeader: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: 12,
+  paddingHorizontal: 15,
+},
   positionSubtext: {
     color: "rgba(255, 255, 255, 0.6)",
     fontSize: 10,
@@ -982,7 +1104,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 5,
+    marginTop: 8,
     paddingHorizontal: 5,
   },
   updateText: {
@@ -994,6 +1116,18 @@ const styles = StyleSheet.create({
     color: "#ff6b6b",
     fontSize: 12,
     flex: 1,
+  },
+   weatherCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 15,
+    padding: 12,
+    marginRight: 12,
+    width: 150, // Largeur fixe pour chaque carte
+    minHeight: 140,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   refreshButtons: {
     flexDirection: "row",
@@ -1012,10 +1146,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   weatherCardsSection: {
-    marginTop: 200,
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
+  
   cardsSectionTitle: {
     color: "#fff",
     fontSize: 18,
@@ -1023,9 +1157,34 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginLeft: 5,
   },
+    sectionTitle: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+    marginLeft: 15,
+  },
   cardsContainer: {
     flexDirection: "column",
+     marginTop: 10,
+    marginBottom: 20,
   },
+
+  scrollIndicators: {
+  flexDirection: "row",
+},
+
+scrollDot: {
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+  backgroundColor: "rgba(255, 255, 255, 0.3)",
+  marginHorizontal: 3,
+},
+scrollDotActive: {
+  backgroundColor: "#ffffff",
+  width: 16,
+},
   cardRow: {
     flexDirection: "row",
     marginBottom: 12,
@@ -1065,6 +1224,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 30,
+  },
+    headerSpacer: {
+    height: 230, // DOIT ÊTRE EXACTEMENT LA MÊME HAUTEUR QUE LE HEADER
   },
   city: {
     fontSize: 22,
