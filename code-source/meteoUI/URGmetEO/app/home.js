@@ -5,16 +5,15 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
-  Dimensions,
-  RefreshControl,
+  Dimensions, Image, RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View
-} from "react-native";
-import Svg, { Circle, Defs, Line, RadialGradient, Rect, Stop } from "react-native-svg";
+} from 'react-native';
+import Svg, { Circle, Defs, Line, LinearGradient, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import { apiClient } from './api';
 
 const { width } = Dimensions.get('window');
@@ -26,6 +25,44 @@ const LOCATION_UPDATE_INTERVAL = 10000; // 10 secondes pour la position
 const MAX_RETRIES = 3;
 const LOCATION_CHANGE_THRESHOLD = 0.001; // ~100m - seuil plus bas pour réactivité
 const LOCATION_ACCURACY = Location.Accuracy.Balanced;
+
+
+const renderForecastDays = () => {
+  // Données de prévisions simulées (à remplacer par votre API)
+  const forecastDays = [
+    { day: 'Auj.', temp: '28°', condition: '☀️', rain: '10%' },
+    { day: 'Demain', temp: '27°', condition: '⛅', rain: '20%' },
+    { day: 'Jeu.', temp: '26°', condition: '🌧️', rain: '60%' },
+    { day: 'Ven.', temp: '25°', condition: '⛈️', rain: '80%' },
+    { day: 'Sam.', temp: '26°', condition: '🌦️', rain: '40%' },
+    { day: 'Dim.', temp: '27°', condition: '⛅', rain: '30%' },
+    { day: 'Lun.', temp: '28°', condition: '☀️', rain: '10%' },
+    { day: 'Mar.', temp: '29°', condition: '☀️', rain: '5%' },
+    { day: 'Mer.', temp: '28°', condition: '⛅', rain: '20%' },
+    { day: 'Jeu.', temp: '27°', condition: '🌦️', rain: '50%' },
+  ];
+
+  return (
+    <ScrollView 
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.forecastScrollView}
+      contentContainerStyle={styles.forecastScrollContent}
+    >
+      {forecastDays.map((day, index) => (
+        <View key={index} style={styles.forecastDayCard}>
+          <Text style={styles.forecastDay}>{day.day}</Text>
+          <Text style={styles.forecastCondition}>{day.condition}</Text>
+          <Text style={styles.forecastTemp}>{day.temp}</Text>
+          <View style={styles.rainInfo}>
+            <Text style={styles.rainIcon}>💧</Text>
+            <Text style={styles.rainPercent}>{day.rain}</Text>
+          </View>
+        </View>
+      ))}
+    </ScrollView>
+  );
+};
 
 // Fonction de distance simplifiée (plus rapide)
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -622,6 +659,55 @@ const weatherCards = weatherData ? [
     );
   }
 
+
+  // Fonction pour vérifier s'il y a des alertes actives
+const hasActiveAlerts = () => {
+  if (!weatherData) return false;
+  
+  // Logique de détection d'alerte
+  const alerts = [];
+  
+  // Exemple: Alerte température élevée
+  if (weatherData.temperature > 35) {
+    alerts.push({ type: 'heat', level: 'high', message: 'Température élevée' });
+  }
+  
+  // Exemple: Alerte pluie forte
+  if (weatherData.rainfall > 20) {
+    alerts.push({ type: 'rain', level: 'high', message: 'Pluie forte' });
+  }
+  
+  // Exemple: Alerte vent fort
+  if ((weatherData.wind_speed || 0) * 3.6 > 50) {
+    alerts.push({ type: 'wind', level: 'high', message: 'Vent fort' });
+  }
+  
+  // Exemple: Alerte UV élevé
+  if ((weatherData.uv_index || 0) > 8) {
+    alerts.push({ type: 'uv', level: 'high', message: 'UV élevé' });
+  }
+  
+  return alerts.length > 0;
+};
+
+// Fonction pour afficher les détails des alertes
+const showAlertsDetails = () => {
+  Alert.alert(
+    "Alertes Météo",
+    "Conditions dangereuses détectées:\n\n" +
+    "• Température élevée (>35°C)\n" +
+    "• Vent fort (>50 km/h)\n" +
+    "• UV très élevé",
+    [
+      { text: "Fermer", style: "cancel" },
+      { 
+        text: "Voir détails", 
+        onPress: () => router.push('/alerts') 
+      }
+    ]
+  );
+};
+
   return (
     <View style={styles.container}>
       <Svg style={StyleSheet.absoluteFill}>
@@ -657,7 +743,7 @@ const weatherCards = weatherData ? [
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#grad3)" />
         <Rect x="0" y="0" width="100%" height="100%" fill="rgba(255, 255, 255, 0.02)" />
       </Svg>
-// Modifiez le JSX du header pour inclure tout le contenu
+
 <View style={styles.header}>
    {/* On réplique le même fond SVG mais seulement pour le header */}
       <Svg style={StyleSheet.absoluteFill}>
@@ -691,29 +777,30 @@ const weatherCards = weatherData ? [
     <View style={styles.headerTop}>
       <Text style={styles.appName}>URGmetEO</Text>
       <View style={styles.headerActions}>
-        <TouchableOpacity 
-          style={[styles.gpsStatus, locationWatchRef.current && styles.gpsActive]} 
-          onPress={handleUseCurrentLocation}
-        >
-          <Text style={styles.gpsStatusText}>
-            {locationWatchRef.current ? "📍 ON" : "📍 OFF"}
-          </Text>
+       
+         {/* Settings Button */}
+    <TouchableOpacity 
+      style={styles.settingsButton} 
+      onPress={() => router.push('/settings')}
+    >
+      <Text style={styles.settingsIcon}>⚙️</Text>
+    </TouchableOpacity>
+        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+          <Text style={styles.loginText}>Login</Text>
         </TouchableOpacity>
+      </View>
+    </View>
+
+    
         
-        <TouchableOpacity 
+        {/* <TouchableOpacity 
           style={[styles.pollingButton, !pollingEnabled && styles.pollingButtonDisabled]} 
           onPress={() => setPollingEnabled(!pollingEnabled)}
         >
           <Text style={styles.pollingButtonText}>
             {pollingEnabled ? "🔄 ON" : "⏸️ OFF"}
           </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginText}>Login</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        </TouchableOpacity> */}
 
     <View style={styles.searchContainer}>
       <View style={styles.searchBar}>
@@ -729,19 +816,35 @@ const weatherCards = weatherData ? [
           <Text style={styles.searchButtonText}>🔍</Text>
         </TouchableOpacity>
       </View>
-      
       <View style={styles.positionInfo}>
-        <TouchableOpacity onPress={handleUseCurrentLocation}>
-          <Text style={styles.positionText}>
-            📍 {currentLocation.lat.toFixed(6)}, {currentLocation.lon.toFixed(6)}
-            {locationAccuracy && ` (±${Math.round(locationAccuracy)}m)`}
-          </Text>
-          <Text style={styles.positionSubtext}>
-            Source: {currentLocation.source} • 
-            Dernier check: {lastLocationCheck ? formatTimeSinceUpdate(lastLocationCheck) : 'Jamais'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+  {/* <TouchableOpacity onPress={handleUseCurrentLocation} style={styles.positionContainer}> */}
+    <View style={styles.positionIconContainer}>
+      <Image 
+        source={require('./../assets/position-icon.png')}
+        style={[
+          styles.positionIcon,
+          !locationWatchRef.current && styles.positionIconInactive
+        ]}
+      />
+      {locationWatchRef.current && (
+        <View style={styles.gpsActiveDot} />
+      )}
+
+        <Text style={styles.positionText}>
+        {currentLocation.lat.toFixed(2)}, {currentLocation.lon.toFixed(2)}
+        {locationAccuracy && ` (±${Math.round(locationAccuracy)}m)`}
+      </Text>
+    </View>
+    <View style={styles.positionTextContainer}>
+    
+      <Text style={styles.positionSubtext}>
+        Source: {currentLocation.source} • 
+        Dernier check: {lastLocationCheck ? formatTimeSinceUpdate(lastLocationCheck) : 'Jamais'} • 
+        GPS: {locationWatchRef.current ? 'ON' : 'OFF'}
+      </Text>
+    </View>
+  {/* </TouchableOpacity> */}
+</View>
       
       <View style={styles.updateInfoContainer}>
         {error ? (
@@ -754,6 +857,14 @@ const weatherCards = weatherData ? [
         )}
         
         <View style={styles.refreshButtons}>
+           <TouchableOpacity 
+          style={[styles.gpsStatus, locationWatchRef.current && styles.gpsActive]} 
+          onPress={handleUseCurrentLocation}
+        >
+          <Text style={styles.gpsStatusText}>
+            {locationWatchRef.current ? "📍 ON" : "📍 OFF"}
+          </Text>
+        </TouchableOpacity>
           <TouchableOpacity style={styles.smallRefreshButton} onPress={handleForceRefresh}>
             <Text style={styles.refreshButtonText}>🔄</Text>
           </TouchableOpacity>
@@ -795,31 +906,92 @@ const weatherCards = weatherData ? [
             <Text style={styles.temp}>
              {weatherData ? `${safeToFixed(weatherData.temperature, 1)}°C` : "--°C"}
             </Text>
-            
+
+
+
             <View style={styles.todayTempContainer}>
-              <View style={styles.todayTempCard}>
-                <Text style={styles.todayTempLabel}>Conditions actuelles</Text>
-                <Text style={styles.todayTempDescription}>
-                  {getWeatherDescription(weatherData)}
-                </Text>
-                {weatherData && (
-                  <>
-                    <Text style={styles.additionalInfo}>
-                       Ressenti: {safeToFixed(weatherData.feels_like, 1)}°C
-                    </Text>
-                    <Text style={styles.additionalInfo}>
-                      Humidité: {safeToFixed(weatherData.humidity, 1)}%
-                    </Text>
-                  </>
-                )}
-              </View>
+             <View style={styles.todayTempCard}>
+  <View style={styles.cardHeader}>
+    <Text style={styles.todayTempLabel}>Conditions actuelles</Text>
+    
+  </View>
+  
+  <Text style={styles.todayTempDescription}>
+    {getWeatherDescription(weatherData)}
+  </Text>
+  
+  {weatherData && (
+    <>
+      <Text style={styles.additionalInfo}>
+        Ressenti: {safeToFixed(weatherData.feels_like, 1)}°C
+      </Text>
+      <Text style={styles.additionalInfo}>
+        Humidité: {safeToFixed(weatherData.humidity, 1)}%
+      </Text>
+      
+      {/* Indicateur d'alerte active (optionnel) */}
+      {hasActiveAlerts() && (
+        <TouchableOpacity 
+          style={styles.activeAlertIndicator}
+          onPress={() => showAlertsDetails()}
+        >
+          <Text style={styles.activeAlertText}>
+            ⚠️ Alerte météo active
+          </Text>
+        </TouchableOpacity>
+      )}
+    </>
+  )}
+</View>
             </View>
+
+
+  <TouchableOpacity 
+  style={styles.rainMapButtonLarge}
+  onPress={() => router.push('/rainMap')}
+  activeOpacity={0.7}
+>
+  {/* Dégradé de carte avec LinearGradient */}
+  <Svg style={StyleSheet.absoluteFill}>
+    <Defs>
+      <LinearGradient id="mapGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <Stop offset="0%" stopColor="#2196F3" stopOpacity="0.3" />
+        <Stop offset="50%" stopColor="#1976D2" stopOpacity="0.2" />
+        <Stop offset="100%" stopColor="#0D47A1" stopOpacity="0.3" />
+      </LinearGradient>
+    </Defs>
+    <Rect x="0" y="0" width="100%" height="100%" fill="url(#mapGradient)" />
+    
+    {/* Grille de carte adaptée à la nouvelle taille */}
+    <Path 
+      d="M20 20 L340 20 M20 70 L340 70 M20 120 L340 120 M20 170 L340 170 M60 20 L60 200 M120 20 L120 200 M180 20 L180 200 M240 20 L240 200 M300 20 L300 200" 
+      stroke="rgba(255, 255, 255, 0.1)" 
+      strokeWidth="1" 
+    />
+    
+    {/* Marqueur de position */}
+    <Circle cx="50%" cy="40%" r="14" fill="rgba(255, 255, 255, 0.25)" />
+    <Circle cx="50%" cy="40%" r="7" fill="#FFFFFF" />
+  </Svg>
+  
+  <View style={styles.mapOverlayLarge} />
+  <View style={styles.glassEffectLarge} />
+  
+  <View style={styles.buttonContentLarge}>
+    <View style={styles.iconCircleLarge}>
+      <Text style={styles.buttonIconLarge}>🌧️</Text>
+    </View>
+    <Text style={styles.buttonMainTextLarge}>Carte de pluie</Text>
+    <Text style={styles.buttonHintLarge}>Voir le radar →</Text>
+  </View>
+</TouchableOpacity>
+
           </View>
 
           <Text style={styles.cardsSectionTitle}>Détails météo</Text>
           
        
-// Dans le JSX
+
 <View style={styles.cardsContainer}>
   <View style={styles.sectionHeader}>
     <Text style={styles.sectionTitle}>Détails météo</Text>
@@ -873,62 +1045,29 @@ const weatherCards = weatherData ? [
     ))}
   </ScrollView>
 </View>
-          
-          <View style={styles.debugSection}>
-            <Text style={styles.debugTitle}>Statut du système</Text>
-            
-            <View style={styles.debugRow}>
-              <Text style={styles.debugLabel}>Position actuelle:</Text>
-              <Text style={styles.debugValue}>
-                {currentLocation.lat.toFixed(6)}, {currentLocation.lon.toFixed(6)}
-              </Text>
-            </View>
-            
-            <View style={styles.debugRow}>
-              <Text style={styles.debugLabel}>Dernière API:</Text>
-              <Text style={styles.debugValue}>
-                {lastApiLocationRef.current ? 
-                  `${lastApiLocationRef.current.lat.toFixed(6)}, ${lastApiLocationRef.current.lon.toFixed(6)}` : 
-                  'Aucune'}
-              </Text>
-            </View>
-            
-            <View style={styles.debugRow}>
-              <Text style={styles.debugLabel}>Suivi GPS:</Text>
-              <Text style={[styles.debugValue, locationWatchRef.current ? styles.debugActive : styles.debugInactive]}>
-                {locationWatchRef.current ? 'ACTIF' : 'INACTIF'}
-              </Text>
-            </View>
-            
-            <View style={styles.debugRow}>
-              <Text style={styles.debugLabel}>Polling météo:</Text>
-              <Text style={[styles.debugValue, pollingEnabled ? styles.debugActive : styles.debugInactive]}>
-                {pollingEnabled ? 'ACTIF' : 'INACTIF'}
-              </Text>
-            </View>
-            
-            <TouchableOpacity style={styles.debugButton} onPress={() => {
-              Alert.alert(
-                "Forcer mise à jour",
-                "Utiliser la position actuelle pour rafraîchir les données?",
-                [
-                  { text: "Annuler", style: "cancel" },
-                  { 
-                    text: "OK", 
-                    onPress: () => {
-                      lastApiLocationRef.current = { 
-                        lat: currentLocation.lat, 
-                        lon: currentLocation.lon 
-                      };
-                      fetchWeatherData(currentLocation.lat, currentLocation.lon);
-                    }
-                  }
-                ]
-              );
-            }}>
-              <Text style={styles.debugButtonText}>Forcer rafraîchissement API</Text>
-            </TouchableOpacity>
-          </View>
+          <View style={styles.forecastSection}>
+  <Text style={styles.forecastTitle}>Prévisions sur 10 jours</Text>
+  
+  {/* Afficher les jours de prévisions */}
+  {renderForecastDays()}
+
+  <TouchableOpacity 
+    style={styles.seeMoreButton} 
+    onPress={() => {
+      // Navigation vers une page détaillée des prévisions
+      router.push({
+        pathname: '/forecastDetail',
+        params: {
+          lat: currentLocation.lat,
+          lon: currentLocation.lon,
+          city: stationData ? stationData.description : "Localisation actuelle"
+        }
+      });
+    }}
+  >
+    <Text style={styles.seeMoreButtonText}>Voir Plus...</Text>
+  </TouchableOpacity>
+</View>
         </View>
       </ScrollView>
     </View>
@@ -938,7 +1077,7 @@ const weatherCards = weatherData ? [
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#2d40e9",
+    backgroundColor: "#728eb1",
   },
   loadingContainer: {
     justifyContent: 'center',
@@ -963,6 +1102,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#4facfe", // Fond solide
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    paddingRight: 10,
+    paddingLeft: 10,
   },
   headerTop: {
     flexDirection: "row",
@@ -983,10 +1124,23 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.2)",
     marginRight: 8,
   },
+  forecastTitle: {
+  color: "#fff",
+  fontSize: 16,
+  fontWeight: "600",
+  marginBottom: 15,
+  textAlign: "center",
+},
   gpsActive: {
     backgroundColor: "rgba(76, 217, 100, 0.2)",
     borderColor: "rgba(76, 217, 100, 0.4)",
   },
+
+  forecastScrollContent: {
+  paddingHorizontal: 5,
+  paddingVertical: 5,
+},
+
   gpsStatusText: {
     color: "#fff",
     fontWeight: "600",
@@ -1014,6 +1168,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 11,
   },
+    positionContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  
   appName: {
     fontSize: 24,
     fontWeight: "bold",
@@ -1043,6 +1202,41 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 5,
   },
+
+  rainPercent: {
+  color: "rgba(255, 255, 255, 0.8)",
+  fontSize: 12,
+},
+
+  forecastDayCard: {
+  backgroundColor: "rgba(255, 255, 255, 0.05)",
+  borderRadius: 12,
+  padding: 12,
+  marginRight: 12,
+  width: 85,
+  alignItems: "center",
+  borderWidth: 1,
+  borderColor: "rgba(255, 255, 255, 0.1)",
+},
+
+forecastDay: {
+  color: "rgba(255, 255, 255, 0.9)",
+  fontSize: 14,
+  fontWeight: "600",
+  marginBottom: 8,
+},
+
+seeMoreButton: {
+  backgroundColor: "rgba(255, 255, 255, 0.12)",
+  paddingVertical: 12,
+  borderRadius: 10,
+  marginTop: 15,
+  alignItems: "center",
+  borderWidth: 1,
+  borderColor: "rgba(255, 255, 255, 0.2)",
+},
+
+
   searchBar: {
     flexDirection: "row",
     backgroundColor: "rgba(255, 255, 255, 0.12)",
@@ -1059,16 +1253,28 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  headerContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 15, // Espace en bas du header
-  },
+  // headerContent: {
+  //   paddingHorizontal: 20,
+  //   //paddingBottom: 15, // Espace en bas du header
+  // },
+
+  rainIcon: {
+  fontSize: 12,
+  marginRight: 4,
+},
+
   searchInput: {
     flex: 1,
     color: "#fff",
     fontSize: 16,
     paddingVertical: 12,
   },
+  rainInfo: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginTop: 4,
+},
+
   searchButton: {
     paddingLeft: 10,
     paddingVertical: 10,
@@ -1078,6 +1284,57 @@ const styles = StyleSheet.create({
     color: "#fff",
     opacity: 0.8,
   },
+  forecastScrollView: {
+  marginHorizontal: -5,
+},
+
+cardHeader: {
+  //flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  width: "100%",
+  marginBottom: 10,
+  
+},
+
+alertButton: {
+  flexDirection: "row",
+  alignItems: "center",
+  backgroundColor: "rgba(255, 193, 7, 0.15)",
+  paddingHorizontal: 12,
+  paddingVertical: 6,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "rgba(255, 193, 7, 0.3)",
+},
+alertIcon: {
+  fontSize: 14,
+  marginRight: 5,
+},
+
+alertText: {
+  color: "#ffc107",
+  fontSize: 12,
+  fontWeight: "600",
+},
+
+activeAlertIndicator: {
+  backgroundColor: "rgba(220, 53, 69, 0.15)",
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "rgba(220, 53, 69, 0.3)",
+  marginTop: 10,
+  alignItems: "center",
+},
+
+activeAlertText: {
+  color: "#dc3545",
+  fontSize: 12,
+  fontWeight: "600",
+},
+
   positionInfo: {
     marginTop: 8,
     marginBottom: 5,
@@ -1099,6 +1356,7 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.6)",
     fontSize: 10,
     marginTop: 2,
+    
   },
   updateInfoContainer: {
     flexDirection: "row",
@@ -1112,6 +1370,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     flex: 1,
   },
+
+  forecastCondition: {
+  fontSize: 24,
+  marginBottom: 8,
+},
+
   errorText: {
     color: "#ff6b6b",
     fontSize: 12,
@@ -1145,6 +1409,35 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
   },
+
+  forecastTemp: {
+  color: "#fff",
+  fontSize: 18,
+  fontWeight: "bold",
+  marginBottom: 2,
+},
+
+settingsButton: {
+  // backgroundColor: "rgba(255, 255, 255, 0.15)",
+  // paddingHorizontal: 12,
+  // paddingVertical: 6,
+  // borderRadius: 12,
+  // borderWidth: 1,
+  // borderColor: "rgba(255, 255, 255, 0.3)",
+  // marginRight: 8,
+},
+settingsIcon: {
+  fontSize: 16,
+  color: "#fff",
+  paddingHorizontal: 12,
+},
+
+forecastTempMin: {
+  color: "rgba(255, 255, 255, 0.7)",
+  fontSize: 14,
+  marginBottom: 8,
+},
+
   weatherCardsSection: {
     paddingHorizontal: 20,
     paddingBottom: 40,
@@ -1220,6 +1513,13 @@ scrollDotActive: {
     textAlign: "center",
     marginTop: 5,
   },
+
+  seeMoreButtonText: {
+  color: "#fff",
+  fontSize: 14,
+  fontWeight: "600",
+},
+
   mainContent: {
     alignItems: "center",
     justifyContent: "center",
@@ -1238,11 +1538,25 @@ scrollDotActive: {
     textShadowRadius: 2,
     marginBottom: 5,
   },
+
+  loadingForecast: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  paddingVertical: 20,
+},
+
   distanceInfo: {
     color: "rgba(255, 255, 255, 0.8)",
     fontSize: 12,
     marginBottom: 10,
   },
+
+  loadingForecastText: {
+  color: "rgba(255, 255, 255, 0.7)",
+  fontSize: 12,
+  marginLeft: 10,
+},
   coords: {
     color: "#fff",
     marginTop: 10,
@@ -1278,7 +1592,18 @@ scrollDotActive: {
     fontSize: 16,
     marginBottom: 8,
     fontWeight: '600',
+    textAlign: "center",
+    
   },
+
+  forecastSection: {
+  marginTop: 25,
+  padding: 15,
+  backgroundColor: "rgba(54, 52, 52, 0.15)",
+  borderRadius: 15,
+  borderWidth: 1,
+  borderColor: "rgba(255, 255, 255, 0.15)",
+},
   todayTempDescription: {
     color: "#fff",
     fontSize: 18,
@@ -1388,4 +1713,420 @@ scrollDotActive: {
     fontSize: 10,
     marginTop: 2,
   },
+
+  
+  positionIcon: {
+    width: 16,
+    height: 16,
+    marginRight: 8,
+    //tintColor: "#ffffff", // Pour colorer l'icône en blanc si elle est noire
+  },
+  
+  positionEmoji: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  
+  positionTextContainer: {
+    flex: 1,
+  },
+  
+  positionText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
+    fontFamily: 'monospace',
+  },
+  
+  positionSubtext: {
+    color: "rgba(255, 255, 255, 0.6)",
+    fontSize: 10,
+    marginTop: 2,
+  },
+
+  positionIconContainer: {
+  position: 'relative',
+  marginRight: 8,
+},
+
+positionIconInactive: {
+  opacity: 0.5,
+},
+
+gpsActiveDot: {
+  position: 'absolute',
+  top: -2,
+  right: -2,
+  width: 6,
+  height: 6,
+  borderRadius: 3,
+  backgroundColor: '#4cd964',
+  borderWidth: 1,
+  borderColor: '#4facfe',
+},
+
+rainMapButton: {
+  backgroundColor: "rgba(33, 150, 243, 0.2)",
+  paddingHorizontal: 20,
+  paddingVertical: 12,
+  borderRadius: 12,
+  marginTop: 15,
+  marginBottom: 20,
+  alignItems: "center",
+  borderWidth: 1,
+  borderColor: "rgba(33, 150, 243, 0.4)",
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 3,
+  elevation: 3,
+  width: 250,
+  alignSelf: "center", // Pour centrer le bouton
+},
+
+rainMapButtonText: {
+  color: "#ffffff",
+  fontSize: 15,
+  fontWeight: "600",
+},
+
+rainMapButtonMinimal: {
+  backgroundColor: "rgba(33, 150, 243, 0.12)",
+  borderWidth: 1,
+  borderColor: "rgba(255, 255, 255, 0.15)",
+  borderRadius: 14,
+  padding: 14,
+  marginTop: 15,
+  marginBottom: 20,
+  width: "85%",
+  alignSelf: "center",
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.08,
+  shadowRadius: 4,
+  elevation: 3,
+},
+
+rainMapButtonInner: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+},
+
+rainIconMinimal: {
+  fontSize: 22,
+  opacity: 0.9,
+},
+
+rainMapButtonTextMinimal: {
+  color: "#ffffff",
+  fontSize: 15,
+  fontWeight: "500",
+  flex: 1,
+  marginLeft: 12,
+  letterSpacing: 0.2,
+},
+
+badgeContainer: {
+  minWidth: 40,
+},
+
+rainBadge: {
+  backgroundColor: "rgba(76, 217, 100, 0.2)",
+  color: "#4cd964",
+  fontSize: 11,
+  fontWeight: "600",
+  paddingHorizontal: 8,
+  paddingVertical: 3,
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "rgba(76, 217, 100, 0.3)",
+},
+// Version 1
+rainMapButtonV1: {
+  backgroundColor: "rgba(33, 150, 243, 0.15)",
+  paddingHorizontal: 25,
+  paddingVertical: 14,
+  borderRadius: 16,
+  marginTop: 18,
+  marginBottom: 20,
+  borderWidth: 1.5,
+  borderColor: "rgba(33, 150, 243, 0.3)",
+  shadowColor: "#2196F3",
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.15,
+  shadowRadius: 8,
+  elevation: 5,
+  width: 280,
+  alignSelf: "center",
+},
+
+rainMapButtonInner: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+},
+
+rainMapIcon: {
+  fontSize: 22,
+},
+
+rainMapArrow: {
+  color: "rgba(255, 255, 255, 0.6)",
+  fontSize: 18,
+  fontWeight: "bold",
+},
+
+// Version 2
+rainMapButtonV2: {
+  backgroundColor: "rgba(33, 150, 243, 0.12)",
+  paddingHorizontal: 20,
+  paddingVertical: 16,
+  borderRadius: 20,
+  marginTop: 20,
+  marginBottom: 25,
+  borderWidth: 1,
+  borderColor: "rgba(33, 150, 243, 0.25)",
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.1,
+  shadowRadius: 6,
+  elevation: 4,
+  width: 300,
+  alignSelf: "center",
+},
+
+rainMapButtonContent: {
+  flexDirection: "row",
+  alignItems: "center",
+},
+
+rainMapIconContainer: {
+  backgroundColor: "rgba(33, 150, 243, 0.25)",
+  width: 50,
+  height: 50,
+  borderRadius: 25,
+  justifyContent: "center",
+  alignItems: "center",
+  marginRight: 15,
+},
+
+rainMapIconLarge: {
+  fontSize: 26,
+},
+
+rainMapTextWrapper: {
+  flex: 1,
+},
+
+rainMapButtonTitle: {
+  color: "#ffffff",
+  fontSize: 16,
+  fontWeight: "600",
+  marginBottom: 3,
+},
+
+rainMapButtonSubtitle: {
+  color: "rgba(255, 255, 255, 0.7)",
+  fontSize: 12,
+},
+
+// Version 3
+rainMapButtonV3: {
+  backgroundColor: "rgba(33, 150, 243, 0.18)",
+  paddingHorizontal: 25,
+  paddingVertical: 16,
+  borderRadius: 14,
+  marginTop: 18,
+  marginBottom: 22,
+  borderWidth: 1.5,
+  borderColor: "rgba(255, 255, 255, 0.2)",
+  position: "relative",
+  overflow: "hidden",
+  width: 260,
+  alignSelf: "center",
+  alignItems: "center",
+},
+
+buttonShineEffect: {
+  position: "absolute",
+  top: -50,
+  left: -50,
+  width: 100,
+  height: 100,
+  backgroundColor: "rgba(255, 255, 255, 0.1)",
+  borderRadius: 50,
+  transform: [{ rotate: "45deg" }],
+},
+
+rainMapButtonIcon: {
+  fontSize: 24,
+  marginBottom: 8,
+},
+
+rainMapButtonLabel: {
+  color: "#ffffff",
+  fontSize: 15,
+  fontWeight: "600",
+  letterSpacing: 0.5,
+},
+
+// Version 4
+rainMapButtonV4: {
+  backgroundColor: "rgba(33, 150, 243, 0.1)",
+  padding: 18,
+  borderRadius: 18,
+  marginTop: 20,
+  marginBottom: 25,
+  borderWidth: 1,
+  borderColor: "rgba(33, 150, 243, 0.2)",
+  shadowColor: "#2196F3",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 6,
+  elevation: 3,
+  width: 280,
+  alignSelf: "center",
+},
+
+rainMapHeader: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginBottom: 12,
+},
+
+rainIcon: {
+  fontSize: 22,
+  marginRight: 10,
+},
+
+rainMapTitle: {
+  color: "#ffffff",
+  fontSize: 16,
+  fontWeight: "600",
+  flex: 1,
+},
+
+rainIndicator: {
+  backgroundColor: "rgba(0, 0, 0, 0.1)",
+  padding: 10,
+  borderRadius: 10,
+},
+
+rainAmount: {
+  color: "#90CAF9",
+  fontSize: 13,
+  fontWeight: "500",
+  marginBottom: 6,
+  textAlign: "center",
+},
+
+rainLevelBar: {
+  height: 6,
+  backgroundColor: "rgba(255, 255, 255, 0.1)",
+  borderRadius: 3,
+  overflow: "hidden",
+},
+
+rainLevelFill: {
+  height: "100%",
+  backgroundColor: "#2196F3",
+  borderRadius: 3,
+},
+
+noRainText: {
+  color: "rgba(255, 255, 255, 0.6)",
+  fontSize: 13,
+  textAlign: "center",
+  fontStyle: "italic",
+  paddingVertical: 8,
+},
+
+// Version 5 (Glassmorphism)
+// Bouton avec dimensions augmentées
+rainMapButtonLarge: {
+  backgroundColor: "rgba(33, 150, 243, 0.08)",
+  padding: 25,
+  borderRadius: 22,
+  marginTop: 20,
+  marginBottom: 25,
+  borderWidth: 1.5,
+  borderColor: "rgba(255, 255, 255, 0.2)",
+  position: "relative",
+  overflow: "hidden",
+  width: 340, // Augmenté de 290 à 340
+  height: 180, // Augmenté de 140 à 180
+  alignSelf: "center",
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.15,
+  shadowRadius: 10,
+  elevation: 6,
+},
+
+mapOverlayLarge: {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: "rgba(33, 150, 243, 0.25)", // Overlay légèrement plus sombre
+  borderRadius: 22,
+},
+
+glassEffectLarge: {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: "rgba(255, 255, 255, 0.05)",
+  borderRadius: 22,
+},
+
+// Contenu du bouton redimensionné
+buttonContentLarge: {
+  alignItems: "center",
+  justifyContent: "center",
+  height: "100%",
+},
+
+iconCircleLarge: {
+  backgroundColor: "rgba(33, 150, 243, 0.25)",
+  width: 70,
+  height: 70,
+  borderRadius: 35,
+  justifyContent: "center",
+  alignItems: "center",
+  marginBottom: 15,
+  borderWidth: 2,
+  borderColor: "rgba(255, 255, 255, 0.3)",
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+  elevation: 3,
+},
+
+buttonIconLarge: {
+  fontSize: 32,
+},
+
+buttonMainTextLarge: {
+  color: "#ffffff",
+  fontSize: 20,
+  fontWeight: "700",
+  marginBottom: 8,
+  letterSpacing: 0.5,
+  textShadowColor: "rgba(0, 0, 0, 0.3)",
+  textShadowOffset: { width: 1, height: 1 },
+  textShadowRadius: 2,
+},
+
+buttonHintLarge: {
+  color: "rgba(255, 255, 255, 0.85)",
+  fontSize: 15,
+  fontWeight: "500",
+  letterSpacing: 0.3,
+},
 });
