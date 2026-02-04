@@ -9,6 +9,7 @@ export default function RootLayout() {
       <Stack.Screen name="login" />
       <Stack.Screen name="PressureCard" />
        <Stack.Screen name="cardDetail" />
+       <Stack.Screen name="rainMap" />
        
     </Stack>
   );
