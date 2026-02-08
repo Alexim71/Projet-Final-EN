@@ -15,30 +15,6 @@ exports.getNearestStation = async (req, res) => {
       });
     }
 
-    // const station = await Station.findOne({
-    //   location: {
-    //     $near: {
-    //       $geometry: {
-    //         type: 'Point',
-    //         coordinates: [lon, lat] // ⚠️ ordre obligatoire
-    //       },
-    //       $maxDistance: 50_000 // 50 km
-    //     }
-    //   },
-    //   status: 1
-    // }).lean();
-
-    // if (!station) {
-    //   return res.status(404).json({
-    //     message: 'Aucune station proche trouvée'
-    //   });
-    // }
-
-    // res.json({
-    //   station
-    // });
-
-
 
 
     const pipeline = [
