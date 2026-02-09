@@ -2233,4 +2233,34 @@ buttonHintLarge: {
   fontWeight: "500",
   letterSpacing: 0.3,
 },
+
+suggestionsContainer: {
+  position: 'absolute',
+  top: 55,
+  left: 0,
+  right: 0,
+  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: 'rgba(0, 0, 0, 0.1)',
+  zIndex: 1000,
+  maxHeight: 200,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.2,
+  shadowRadius: 4,
+  elevation: 5,
+},
+
+suggestionItem: {
+  paddingHorizontal: 15,
+  paddingVertical: 12,
+  borderBottomWidth: 1,
+  borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+},
+
+suggestionText: {
+  fontSize: 14,
+  color: '#333',
+},
 });
