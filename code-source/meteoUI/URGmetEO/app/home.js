@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import Svg, { Circle, Defs, Line, LinearGradient, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import { apiClient } from './api';
+import { getSearchSuggestions, searchHaitiLocation } from './haiti-locations';
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 250;
@@ -184,6 +185,39 @@ export default function Home() {
   const lastApiLocationRef = useRef(null); // Dernière position utilisée pour l'API
   const appStateRef = useRef(AppState.currentState);
   const router = useRouter();
+
+  
+const [searchSuggestions, setSearchSuggestions] = useState([]);
+const [showSuggestions, setShowSuggestions] = useState(false);
+
+
+
+// Fonction pour gérer la saisie
+const handleSearchInputChange = (text) => {
+  setSearchQuery(text);
+  
+  if (text.length >= 2) {
+    const suggestions = getSearchSuggestions(text, 5);
+    setSearchSuggestions(suggestions);
+    setShowSuggestions(suggestions.length > 0);
+  } else {
+    setShowSuggestions(false);
+  }
+};
+
+
+
+// Fonction pour sélectionner une suggestion
+const handleSuggestionSelect = (suggestion) => {
+  setSearchQuery(suggestion.name);
+  setShowSuggestions(false);
+  
+  // Rechercher cette localité
+  const searchResult = searchHaitiLocation(suggestion.name);
+  if (searchResult.success && searchResult.results.length > 0) {
+    navigateToLocation(searchResult.results[0]);
+  }
+};
 
 
   // Fonction utilitaire pour convertir en nombre avec valeur par défaut
@@ -538,19 +572,72 @@ const safeToFixed = (value, digits = 1, defaultValue = 0) => {
 
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
+
+    try {
+    setLoading(true);
     
-    // Pour l'exemple, on simule une recherche de Port-au-Prince
-    if (searchQuery.toLowerCase().includes("port")) {
-      const newLocation = {
-        lat: 18.533333,
-        lon: -72.333333,
-        source: 'search'
-      };
-      
-      setCurrentLocation(newLocation);
-      lastApiLocationRef.current = { lat: newLocation.lat, lon: newLocation.lon };
-      fetchWeatherData(newLocation.lat, newLocation.lon);
+    // Rechercher dans les localités d'Haïti
+    const searchResult = searchHaitiLocation(searchQuery);
+    
+    if (!searchResult.success || searchResult.results.length === 0) {
+      Alert.alert(
+        'Aucun résultat',
+        `Aucune localité trouvée pour "${searchQuery}". Essayez avec un autre nom.`,
+        [{ text: 'OK' }]
+      );
+      return;
     }
+    
+    // Si plusieurs résultats, montrer une sélection
+    if (searchResult.results.length > 1) {
+      Alert.alert(
+        'Plusieurs résultats',
+        'Choisissez une localité :',
+        searchResult.results.map((loc, index) => ({
+          text: `${loc.name} (${loc.type})`,
+          onPress: () => navigateToLocation(loc)
+        }))
+      );
+    } else {
+      // Un seul résultat, naviguer directement
+      navigateToLocation(searchResult.results[0]);
+    }
+    
+  } catch (error) {
+    console.error('Erreur recherche:', error);
+    Alert.alert('Erreur', 'Impossible d\'effectuer la recherche');
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Fonction pour naviguer vers une localité
+const navigateToLocation = (location) => {
+  console.log('Navigation vers:', location);
+  
+  // Mettre à jour la position actuelle
+  const newLocation = {
+    lat: location.coordinates.latitude,
+    lon: location.coordinates.longitude,
+    source: 'search',
+    searchResult: location
+  };
+  
+  setCurrentLocation(newLocation);
+  lastApiLocationRef.current = { 
+    lat: location.coordinates.latitude, 
+    lon: location.coordinates.longitude 
+  };
+  
+  // Rafraîchir les données météo
+  fetchWeatherData(location.coordinates.latitude, location.coordinates.longitude);
+  
+  // Optionnel: Afficher un message
+  Alert.alert(
+    'Localisation mise à jour',
+    `Vous avez été redirigé vers ${location.name}`,
+    [{ text: 'OK' }]
+  );
   };
 
   const handleCardPress = (cardId, cardTitle) => {
@@ -806,10 +893,10 @@ const showAlertsDetails = () => {
       <View style={styles.searchBar}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher une ville..."
+          placeholder="Rechercher une ville, commune ou département..."
           placeholderTextColor="#ffffffb3"
           value={searchQuery}
-          onChangeText={setSearchQuery}
+          onChangeText={handleSearchInputChange}
           onSubmitEditing={handleSearch}
         />
         <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
@@ -1070,6 +1157,23 @@ const showAlertsDetails = () => {
 </View>
         </View>
       </ScrollView>
+
+        {/* Suggestions d'autocomplétion */}
+  {showSuggestions && searchSuggestions.length > 0 && (
+    <View style={styles.suggestionsContainer}>
+      {searchSuggestions.map((suggestion, index) => (
+        <TouchableOpacity
+          key={`suggestion-${index}`}
+          style={styles.suggestionItem}
+          onPress={() => handleSuggestionSelect(suggestion)}
+        >
+          <Text style={styles.suggestionText}>{suggestion.display}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  )}
+
+  
     </View>
   );
 }
