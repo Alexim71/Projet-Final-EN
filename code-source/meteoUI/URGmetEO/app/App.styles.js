@@ -60,6 +60,35 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "bold",
   },
+
+  loaderOverlay: {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: "rgba(0,0,0,0.6)",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 10,
+},
+
+loaderText: {
+  marginTop: 15,
+  color: "#fff",
+  fontSize: 16,
+},
+
+  lottie: {
+    width: 220,
+    height: 220,
+  },
+    loadingText: {
+    marginTop: 20,
+    color: "#fff",
+    fontSize: 16,
+  },
+
 });
 
 export default styles;
