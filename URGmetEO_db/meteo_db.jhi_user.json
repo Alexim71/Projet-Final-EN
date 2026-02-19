@@ -1,0 +1,106 @@
+[{
+  "_id": "user-2",
+  "login": "user",
+  "password": "$2a$10$VEjxo0jq2YG9Rbk2HmX9S.k1uZBGYUHdUcid3g/vfiEl7lwWgOH/K",
+  "first_name": "",
+  "last_name": "User",
+  "email": "user@localhost",
+  "activated": true,
+  "lang_key": "fr",
+  "authorities": [
+    {
+      "_id": "ROLE_USER"
+    }
+  ],
+  "created_by": "system",
+  "created_date": {
+    "$date": "2023-09-24T14:13:21.946Z"
+  },
+  "last_modified_by": "system",
+  "last_modified_date": {
+    "$date": "2023-09-24T14:13:21.954Z"
+  },
+  "_class": "com.urgeo.recicamet.domain.User"
+},
+{
+  "_id": "user-1",
+  "login": "admin",
+  "password": "$2a$10$bjbWmEqULHZ24VOJHskzPu6Wg8bXhWGqplK/.SRjnvvm3Q2owmDjS",
+  "first_name": "admin",
+  "last_name": "Administrator",
+  "email": "admin@localhost",
+  "activated": true,
+  "lang_key": "fr",
+  "authorities": [
+    {
+      "_id": "ROLE_USER"
+    },
+    {
+      "_id": "ROLE_ADMIN"
+    }
+  ],
+  "created_by": "system",
+  "created_date": {
+    "$date": "2023-09-24T14:13:21.998Z"
+  },
+  "last_modified_by": "admin",
+  "last_modified_date": {
+    "$date": "2023-10-16T21:21:42.873Z"
+  },
+  "_class": "com.urgeo.recicamet.domain.User"
+},
+{
+  "_id": {
+    "$oid": "652d92b41bf4dd4429c14b4c"
+  },
+  "login": "recicamet",
+  "password": "$2a$10$xltH7sQZ9bBJ.kCzGR.ZSuI4G7C9TdEB4F8CFUK7NCoCRROuy/zYi",
+  "first_name": "recicamet",
+  "last_name": "recicamet",
+  "email": "urgeo@fds.ed.ht",
+  "activated": true,
+  "lang_key": "fr",
+  "activation_key": "CjYZA9R0vhFwxKVJWnWn",
+  "authorities": [
+    {
+      "_id": "ROLE_USER"
+    },
+    {
+      "_id": "ROLE_ADMIN"
+    }
+  ],
+  "created_by": "anonymousUser",
+  "created_date": {
+    "$date": "2023-10-16T19:44:52.056Z"
+  },
+  "last_modified_by": "admin",
+  "last_modified_date": {
+    "$date": "2023-10-16T21:18:39.680Z"
+  },
+  "_class": "com.urgeo.recicamet.domain.User"
+},
+{
+  "_id": {
+    "$oid": "691110ad19d8d7066868af3b"
+  },
+  "first_name": "",
+  "last_name": "",
+  "email": "sanloveedena@gmail.com",
+  "tokenConfirmation": "6bd7ea716022e78c88737fa2faf24987bc76fe692a7067d984cdde3bc3996d4c",
+  "activated": false,
+  "lang_key": "fr",
+  "authorities": [
+    {
+      "_id": "ROLE_USER"
+    }
+  ],
+  "created_by": "system",
+  "last_modified_by": "system",
+  "_class": "com.urgeo.recicamet.domain.User",
+  "created_date": {
+    "$date": "2025-11-09T22:07:41.114Z"
+  },
+  "last_modified_date": {
+    "$date": "2025-11-09T22:07:41.115Z"
+  }
+}]

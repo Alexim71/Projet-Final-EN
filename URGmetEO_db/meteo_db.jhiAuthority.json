@@ -1,0 +1,16 @@
+[{
+  "_id": "ROLE_USER",
+  "jhiUserAuthorityJhiUsers": [
+    {
+      "$oid": "6671c2d1f14d0f3c002090c8"
+    }
+  ],
+  "dateCreated": {
+    "$date": "2024-06-18T17:24:52.541Z"
+  },
+  "lastUpdated": {
+    "$date": "2024-06-18T17:24:52.541Z"
+  },
+  "version": 0,
+  "_class": "ht.edu.fds.recicamet.domain.JhiAuthority"
+}]

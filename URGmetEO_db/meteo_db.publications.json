@@ -1,0 +1,18 @@
+[{
+  "_id": "645654656",
+  "title": "Simbi database: historical hydro-meteorological time series and catchment attributes in Haiti, 1905-2005",
+  "description": "Haiti is highly exposed to hydro-climatic hazards. However, no database exists for the scientific community to characterize these hazards. To fill this gap, hydro-climatic data were compiled to create the first historical database in Haiti. This database, called Simbi, will contribute to a better knowledge of Haitian catchment hydrology.",
+  "authors": "Bathelemy, Ralph; Brigode, Pierre; Andréassian, Vazken; Perrin, Charles; Moron, Vincent; Gaucherel, Cédric; Tric, Emmanuel; Boisson, Dominique",
+  "link": "https://dataverse.ird.fr/dataset.xhtml?persistentId=doi:10.23708/02POK6",
+  "indexx": 0,
+  "_class": "ht.fds.edu.climexha.domain.Publications"
+},
+{
+  "_id": "535345",
+  "title": "Atelier du projet CLIMEXHA: Propos de circonstance du Gouverneur, Monsieur Ronald Gabriel",
+  "description": "Bonjour tout le monde,  Permettez-moi de saluer le Recteur de l’UEH, le doyen de la Faculté des Sciences, ainsi que les professeurs, sans oublier les membres de la Communauté scientifique en présentiel et en ligne.",
+  "authors": "BRH",
+  "link": "https://frd.brh.ht/actualites.php?single_actualite=nznVJ365SWaqrQtOpRearlbVhKJVVSEkTmD6gnY9HxK6sueMU2MNlo7uLeUT5MUPgI17JWmD97zgrIqrGaPlAXrc47bPLwlAgAtd",
+  "indexx": 1,
+  "_class": "ht.fds.edu.climexha.domain.Publications"
+}]

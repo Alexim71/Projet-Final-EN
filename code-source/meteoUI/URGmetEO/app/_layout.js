@@ -6,6 +6,11 @@ export default function RootLayout() {
       
       <Stack.Screen name="App" />
       <Stack.Screen name="home" />
+      <Stack.Screen name="login" />
+      <Stack.Screen name="PressureCard" />
+       <Stack.Screen name="cardDetail" />
+       <Stack.Screen name="rainMap" />
+       
     </Stack>
   );
 }

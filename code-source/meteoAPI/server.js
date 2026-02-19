@@ -8,6 +8,7 @@ const swaggerDocs = require("./swagger");
 // Charger le cron
 require("./cron/cleanup");
 const geoRoutes = require('./routes/geo.routes');
+const rainRoutes = require('./routes/rain.routes');
 
 
 
@@ -16,10 +17,14 @@ app.use(express.json()); // Pour lire du JSON
 app.use(cors());
 app.use('/api/auth', authRoutes);
 app.use('/api/geo', geoRoutes);
+app.use('/api/rain', rainRoutes);
+
 
 
 //  Connexion à MongoDB
-mongoose.connect("mongodb://localhost:27017/meteoDB", {
+//mongoose.connect("mongodb://localhost:27017/meteoDB", {
+mongoose.connect("mongodb://localhost:27017/meteo_db2", {
+
     useNewUrlParser: true,
     useUnifiedTopology: true
 })

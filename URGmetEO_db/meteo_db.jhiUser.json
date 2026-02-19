@@ -1,0 +1,143 @@
+[{
+  "_id": {
+    "$oid": "65b17ea82beaeb4add7603db"
+  },
+  "login": "recicamet",
+  "passwordHash": "{bcrypt}$2a$10$pHAHsmcQTeDeSPOsXytfiukSyoSKW2sPOAvsp7kHhph3m4oCAU2YC",
+  "firstName": "Recicamet",
+  "email": "recicamet@local.host",
+  "activated": false,
+  "dateCreated": {
+    "$date": "2024-01-24T21:18:31.995Z"
+  },
+  "lastUpdated": {
+    "$date": "2024-01-24T21:18:31.995Z"
+  },
+  "version": 0,
+  "_class": "ht.edu.fds.recicamet.domain.JhiUser"
+},
+{
+  "_id": {
+    "$oid": "65c933878936a03955da9248"
+  },
+  "login": "DLJ_FDS",
+  "passwordHash": "{bcrypt}$2a$10$CtK4CfjC0/BySY80FrdEZO8MM7nutoglJp9en6eijW8NPr.kiO4WC",
+  "firstName": "Donald",
+  "lastName": "Louis Jean",
+  "email": "donald.louis-jean@ueh.edu.ht",
+  "domain": "teacher",
+  "acceptContact": true,
+  "activated": true,
+  "dateCreated": {
+    "$date": "2024-02-11T20:52:23.332Z"
+  },
+  "lastUpdated": {
+    "$date": "2024-02-11T20:52:23.332Z"
+  },
+  "version": 0,
+  "_class": "ht.edu.fds.recicamet.domain.JhiUser"
+},
+{
+  "_id": {
+    "$oid": "65e2643f1cedad5f8f65ca3b"
+  },
+  "login": "levilliard",
+  "passwordHash": "{bcrypt}$2a$10$vMiZrAodDx6/JfqwgMXhYepGFUYb6eN0w0S0PclVEM9FeTcse.eee",
+  "firstName": "Elisée",
+  "lastName": "Villiard",
+  "email": "levilliard@gmail.com",
+  "domain": "professional",
+  "acceptContact": true,
+  "activated": true,
+  "dateCreated": {
+    "$date": "2024-03-01T23:26:55.558Z"
+  },
+  "lastUpdated": {
+    "$date": "2024-03-01T23:26:55.558Z"
+  },
+  "version": 0,
+  "_class": "ht.edu.fds.recicamet.domain.JhiUser"
+},
+{
+  "_id": {
+    "$oid": "662969e115d9bb1bed88c06d"
+  },
+  "login": "tizon",
+  "passwordHash": "{bcrypt}$2a$10$YhhTcHOc54gtzuJghHzRU.IYwCZNjYcI89dKUVg4Bk8m4GysEGj4a",
+  "firstName": "Elisee",
+  "lastName": "Villiard",
+  "email": "devilliard@gmail.com",
+  "domain": "researcher",
+  "acceptContact": true,
+  "activated": true,
+  "dateCreated": {
+    "$date": "2024-04-24T20:21:53.442Z"
+  },
+  "lastUpdated": {
+    "$date": "2024-04-24T20:21:53.442Z"
+  },
+  "version": 0,
+  "_class": "ht.edu.fds.recicamet.domain.JhiUser"
+},
+{
+  "_id": {
+    "$oid": "6671c2d1f14d0f3c002090c8"
+  },
+  "login": "Renald",
+  "passwordHash": "{bcrypt}$2a$10$lyFDwqH2VWcPNbTRdVb/nO/yLDFI0bPjDrnRgFkWuyxkKK5Ln4Fry",
+  "firstName": "Renaldo",
+  "lastName": "Sauveur",
+  "email": "renaldosauveur@yahoo.fr",
+  "domain": "researcher",
+  "acceptContact": true,
+  "activated": true,
+  "dateCreated": {
+    "$date": "2024-06-18T17:24:33.046Z"
+  },
+  "lastUpdated": {
+    "$date": "2024-06-18T17:24:52.513Z"
+  },
+  "version": 1,
+  "confirmationToken": "c8d907e4-54c1-4515-ac47-b9db65c8d026",
+  "_class": "ht.edu.fds.recicamet.domain.JhiUser"
+},
+{
+  "_id": {
+    "$oid": "65c26d3dd8737c463481c670"
+  },
+  "login": "tizon2",
+  "passwordHash": "{bcrypt}$2a$10$kBe/n2JbGE.l8eMeWqSBUe8n9tY6UKbpNrvOZaJcqJejhxljaglw2",
+  "firstName": "Elisée",
+  "lastName": "Villiard",
+  "email": "test3232@gmail.com",
+  "domain": "teacher",
+  "acceptContact": true,
+  "activated": true,
+  "dateCreated": {
+    "$date": "2024-02-06T17:32:45.127Z"
+  },
+  "lastUpdated": {
+    "$date": "2024-02-06T17:32:45.127Z"
+  },
+  "version": 0,
+  "_class": "ht.edu.fds.recicamet.domain.JhiUser"
+},
+{
+  "_id": {
+    "$oid": "657b92a0c64acf0a94ac3787"
+  },
+  "login": "Mr meteo",
+  "passwordHash": "{bcrypt}$2a$10$FNOSVQ.D1R93/hhk4Pu5Ze3SW9PtTq6bsuhCLxhUtS/UAUGZax9rC",
+  "firstName": "Rudolph",
+  "lastName": "victor",
+  "email": "rudyvictor@yahoo.com",
+  "activated": false,
+  "dateCreated": {
+    "$date": "2023-12-14T23:41:20.828Z"
+  },
+  "lastUpdated": {
+    "$date": "2023-12-14T23:41:20.828Z"
+  },
+  "version": 0,
+  "_class": "ht.edu.fds.recicamet.domain.JhiUser"
+}]
