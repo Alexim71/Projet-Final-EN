@@ -16,6 +16,8 @@ import {
 import Svg, { Circle, Defs, Line, LinearGradient, Path, RadialGradient, Rect, Stop } from "react-native-svg";
 import { apiClient } from './api';
 import { getSearchSuggestions, searchHaitiLocation } from './haiti-locations';
+import { convertTemperature, convertWindSpeed, convertPressure } from "./utils/conversions";
+import { useSettings } from "../context/SettingsContext";
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 250;
@@ -106,14 +108,12 @@ const getWeatherDescription = (data) => {
   return "Ensoleillé";
 };
 
-const WindSpeedIndicator = ({ speed = 0, direction = 0 }) => {
+const WindSpeedIndicator = ({ speed = 0, direction = 0, unit = "km/h" }) => {
 
-   const safeSpeed = safeSpeed || 0;
+  const safeSpeed = speed || 0;
   const safeDirection = direction || 0;
 
-
-  const speedKmh = speed * 3.6;
-  const windLevel = Math.min(4, Math.floor(speedKmh / 10));
+  const windLevel = Math.min(4, Math.floor(safeSpeed / 10));
   const directionCardinal = getCardinalDirection(safeDirection);
   
   return (
@@ -152,9 +152,13 @@ const WindSpeedIndicator = ({ speed = 0, direction = 0 }) => {
       </View>
       
       <View style={styles.windInfo}>
-        <Text style={styles.windSpeedValue}>{speedKmh.toFixed(1)} km/h</Text>
+        <Text style={styles.windSpeedValue}>
+          {safeSpeed.toFixed(1)} {unit}
+        </Text>
         <Text style={styles.windDirectionText}>{directionCardinal}</Text>
-        <Text style={styles.windDescription}>{getWindDescription(speedKmh)}</Text>
+        <Text style={styles.windDescription}>
+          {getWindDescription(safeSpeed)}
+        </Text>
       </View>
     </View>
   );
@@ -190,7 +194,9 @@ export default function Home() {
 const [searchSuggestions, setSearchSuggestions] = useState([]);
 const [showSuggestions, setShowSuggestions] = useState(false);
 
-
+  //const theme = useTheme(); 
+const { useCelsius, windUnit, pressureUnit } = useSettings();
+const wind = convertWindSpeed(weatherData?.wind_speed || 0, windUnit);
 
 // Fonction pour gérer la saisie
 const handleSearchInputChange = (text) => {
@@ -680,57 +686,79 @@ const navigateToLocation = (location) => {
   };
 const weatherCards = weatherData ? [
   [
-    { 
-      id: 1, 
-      title: "💨 Vent", 
-      component: <WindSpeedIndicator speed={weatherData.wind_speed || 0} direction={weatherData.wind_direction || 0} />,
-      subtitle: getWindDescription((weatherData.wind_speed || 0) * 3.6),
-      value: `${((weatherData.wind_speed || 0) * 3.6).toFixed(1)} km/h`
-    },
-    { 
-      id: 2, 
-      title: "💧 Humidité", 
-      value: `${(weatherData.humidity || 0).toFixed(1)}%`, 
-      subtitle: (weatherData.humidity || 0) > 70 ? "Élevée" : "Confortable" 
-    },
-    { 
-      id: 3, 
-      title: "📊 Pression", 
-      value: `${(weatherData.pressure || 0).toFixed(1)} hPa`, 
-      subtitle: (weatherData.pressure || 0) > 1013 ? "Haute" : "Normale" 
-    },
-  ],
-  [
-    { 
-      id: 4, 
-      title: "☀️ UV", 
-      value: (weatherData.uv_index || 0).toString(), 
-      subtitle: getUVDescription(weatherData.uv_index || 0) 
-    },
-    { 
-      id: 5, 
-      title: "🌡️ Ressenti", 
-      value: `${(weatherData.feels_like || 0).toFixed(1)}°C`, 
-      subtitle: "Indice thermique" 
-    },
-    { 
-      id: 6, 
-      title: "💧 Rosée", 
-      value: `${(weatherData.dew_point || 0).toFixed(1)}°C`, 
-      subtitle: "Point de rosée" 
-    },
-    { 
-      id: 7, 
-      title: "☀️ Radiation", 
-      value: `${(weatherData.solar_radiation || 0)} W/m²`, 
-      subtitle: "Solaire" 
-    },
-    { 
-      id: 8, 
-      title: "🔋 Batterie", 
-      value: `${(weatherData.battery_level || 0)}%`, 
-      subtitle: "Niveau batterie" 
-    },
+     {
+    id: 1,
+    title: "💨 Vent",
+    component: (
+  <WindSpeedIndicator
+    speed={wind}
+    direction={weatherData.wind_direction || 0}
+    unit={windUnit}
+  />
+),
+    subtitle: getWindDescription(
+      convertWindSpeed(weatherData.wind_speed || 0, windUnit)
+    ),
+    value: `${convertWindSpeed(
+      weatherData.wind_speed || 0,
+      windUnit
+    ).toFixed(1)} ${windUnit}`
+  },
+  {
+    id: 2,
+    title: "💧 Humidité",
+    value: `${(weatherData.humidity || 0).toFixed(1)}%`,
+    subtitle:
+      (weatherData.humidity || 0) > 70 ? "Élevée" : "Confortable"
+  },
+  {
+    id: 3,
+    title: "📊 Pression",
+    value: `${convertPressure(
+      weatherData.pressure || 0,
+      pressureUnit
+    ).toFixed(1)} ${pressureUnit}`,
+    subtitle:
+      (weatherData.pressure || 0) > 1013 ? "Haute" : "Normale"
+  }
+],
+[
+  {
+    id: 4,
+    title: "☀️ UV",
+    value: (weatherData.uv_index || 0).toString(),
+    subtitle: getUVDescription(weatherData.uv_index || 0)
+  },
+  {
+    id: 5,
+    title: "🌡️ Ressenti",
+    value: `${convertTemperature(
+      weatherData.feels_like || 0,
+      useCelsius
+    ).toFixed(1)}°${useCelsius ? "C" : "F"}`,
+    subtitle: "Indice thermique"
+  },
+  {
+    id: 6,
+    title: "💧 Rosée",
+    value: `${convertTemperature(
+      weatherData.dew_point || 0,
+      useCelsius
+    ).toFixed(1)}°${useCelsius ? "C" : "F"}`,
+    subtitle: "Point de rosée"
+  },
+  {
+    id: 7,
+    title: "☀️ Radiation",
+    value: `${weatherData.solar_radiation || 0} W/m²`,
+    subtitle: "Solaire"
+  },
+  {
+    id: 8,
+    title: "🔋 Batterie",
+    value: `${weatherData.battery_level || 0}%`,
+    subtitle: "Niveau batterie"
+  },
   ]
 ] : [[], []];
 
@@ -990,8 +1018,8 @@ const showAlertsDetails = () => {
                 `Distance: ${stationData.distance.toFixed(1)} km` : 
                 ""}
             </Text>
-            <Text style={styles.temp}>
-             {weatherData ? `${safeToFixed(weatherData.temperature, 1)}°C` : "--°C"}
+            <Text style={styles.temp}>             
+             {weatherData ? `${convertTemperature(weatherData.temperature, useCelsius).toFixed(1)}°${useCelsius ? "C" : "F"}`: "--°"}
             </Text>
 
 
@@ -1010,10 +1038,14 @@ const showAlertsDetails = () => {
   {weatherData && (
     <>
       <Text style={styles.additionalInfo}>
-        Ressenti: {safeToFixed(weatherData.feels_like, 1)}°C
+        Ressenti: {weatherData
+    ? `${convertTemperature(weatherData.feels_like, useCelsius).toFixed(1)}°${useCelsius ? "C" : "F"}`
+    : "--°"}
       </Text>
       <Text style={styles.additionalInfo}>
-        Humidité: {safeToFixed(weatherData.humidity, 1)}%
+        Humidité: {weatherData
+    ? `${convertWindSpeed(weatherData.wind_speed, windUnit).toFixed(1)} ${windUnit}`
+    : "--"}
       </Text>
       
       {/* Indicateur d'alerte active (optionnel) */}

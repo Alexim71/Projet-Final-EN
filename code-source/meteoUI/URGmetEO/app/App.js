@@ -12,8 +12,10 @@ import styles from '@/app/App.styles';
 import { useRouter } from "expo-router";
 import LottieView from "lottie-react-native";
 import { ActivityIndicator, Alert, Linking } from "react-native";
+import { useTheme } from "../context/theme";
 
-const { height } = Dimensions.get("window");
+const { height } = Dimensions.get("window")
+
 
 export default function App() {
   const slideAnim = useRef(new Animated.Value(height)).current;
@@ -21,6 +23,7 @@ export default function App() {
   const [loadingLocation, setLoadingLocation] = useState(false);
   const fadePermission = useRef(new Animated.Value(1)).current;
   const router = useRouter();
+   const theme = useTheme();
 
   useEffect(() => {
     // Affiche le panneau après le splash
@@ -210,11 +213,10 @@ export default function App() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* SPLASH */}
-      <Text style={styles.title}>URGmetEO</Text>
+   
 
-    
+<View style={[styles.container, { backgroundColor: theme.background }]}>
+  <Text style={{ color: theme.text }}>URGmetEO</Text>    
 
     {showPermission && !loadingLocation &&( <Image
         source={require("@/assets/images/logo.png")}

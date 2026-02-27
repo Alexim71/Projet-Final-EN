@@ -12,7 +12,7 @@ import {
   View
 } from "react-native";
 import MapView, { Heatmap, Marker, Polygon, PROVIDER_GOOGLE } from 'react-native-maps';
-import { apiClient } from './../app/api.js';
+import { apiClient } from './api.js';
 
 const { width, height } = Dimensions.get('window');
 

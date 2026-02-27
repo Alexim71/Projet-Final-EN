@@ -6,22 +6,25 @@ import {
   Image,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Alert,
+  Linking,
 } from "react-native";
 
-import styles from '@/app/App.styles';
-
-import { Alert, Linking } from "react-native";
-
+import styles from "@/app/App.styles";
+import { useRouter } from "expo-router";
 
 const { height } = Dimensions.get("window");
 
 export default function App() {
+  const router = useRouter();
   const slideAnim = useRef(new Animated.Value(height)).current;
   const [showPermission, setShowPermission] = useState(false);
 
   useEffect(() => {
-    // Affiche le panneau après le splash
+    checkPermissionAndRedirect();
+
+    // Animation du panneau après 2 secondes
     setTimeout(() => {
       setShowPermission(true);
       Animated.timing(slideAnim, {
@@ -32,50 +35,55 @@ export default function App() {
     }, 2000);
   }, []);
 
-  // const requestLocationPermission = async () => {
-  //   const { status } = await Location.requestForegroundPermissionsAsync();
-  //   if (status === "granted") {
-  //     console.log("📍 Permission accordée");
-  //   } else {
-  //     console.log("❌ Permission refusée");
-  //   }
-  // };
+  // 🔎 Vérifie si permission déjà accordée
+  const checkPermissionAndRedirect = async () => {
+    const { status } = await Location.getForegroundPermissionsAsync();
 
+    if (status === "granted") {
+      console.log("📍 Permission déjà accordée → Redirection");
+      router.replace("/home");
+    }
+  };
 
+  // 📍 Demande permission
   const requestLocationPermission = async () => {
-  const { status, canAskAgain } =
-    await Location.getForegroundPermissionsAsync();
+    const { status, canAskAgain } =
+      await Location.getForegroundPermissionsAsync();
 
-  if (status === "granted") {
-    console.log("📍 Permission déjà accordée");
-    return;
-  }
+    // Si déjà accordée
+    if (status === "granted") {
+      console.log("📍 Permission déjà accordée");
+      router.replace("/home");
+      return;
+    }
 
-  if (!canAskAgain) {
-    Alert.alert(
-      "Autorisation requise",
-      "La localisation est désactivée. Activez-la manuellement dans les paramètres.",
-      [
-        { text: "Annuler", style: "cancel" },
-        {
-          text: "Ouvrir les paramètres",
-          onPress: () => Linking.openSettings(),
-        },
-      ]
-    );
-    return;
-  }
+    // Si bloquée définitivement
+    if (!canAskAgain) {
+      Alert.alert(
+        "Autorisation requise",
+        "La localisation est désactivée. Activez-la manuellement dans les paramètres.",
+        [
+          { text: "Annuler", style: "cancel" },
+          {
+            text: "Ouvrir les paramètres",
+            onPress: () => Linking.openSettings(),
+          },
+        ]
+      );
+      return;
+    }
 
-  const result =
-    await Location.requestForegroundPermissionsAsync();
+    // Demande réelle
+    const result =
+      await Location.requestForegroundPermissionsAsync();
 
-  if (result.status === "granted") {
-    console.log("📍 Permission accordée");
-  } else {
-    console.log("❌ Permission refusée");
-  }
-};
-
+    if (result.status === "granted") {
+      console.log("📍 Permission accordée → Redirection");
+      router.replace("/home");
+    } else {
+      console.log("❌ Permission refusée");
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -114,4 +122,3 @@ export default function App() {
     </View>
   );
 }
-
