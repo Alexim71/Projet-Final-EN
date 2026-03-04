@@ -1,0 +1,71 @@
+\pagenumbering{arabic}
+
+\chapter{Contexte du projet}
+
+
+\section{Introduction générale }
+Les phénomènes météorologiques jouent un rôle déterminant dans de nombreux domaines de la vie quotidienne et du développement socio-économique, notamment l’agriculture, la gestion des risques naturels, les transports, l’énergie et la planification territoriale. Dans un contexte marqué par les effets croissants du changement climatique, l’accès à des données météorologiques fiables, précises et mises à jour en temps réel devient un enjeu majeur, en particulier pour les pays exposés aux aléas climatiques.\\ \\
+En Haïti, la disponibilité et l’exploitation efficace des données météorologiques demeurent limitées, malgré l’existence d’initiatives visant à renforcer les capacités d’observation et de collecte à travers des réseaux de stations météorologiques. Les données produites sont souvent sous-exploitées, peu accessibles au grand public ou présentées sous des formes difficiles à interpréter pour les utilisateurs non spécialisés. Cette situation réduit considérablement leur impact potentiel dans la prévention des risques, la prise de décision et la sensibilisation de la population.\\ \\
+Par ailleurs, les avancées récentes dans les technologies de l’information et de la communication, notamment le développement web et mobile, les bases de données NoSQL, les systèmes distribués et les outils de visualisation interactive, offrent aujourd’hui des solutions adaptées pour le traitement et la diffusion de données en temps réel. Ces technologies permettent de transformer des volumes importants de données brutes en informations compréhensibles, exploitables et accessibles via des interfaces intuitives.\\ \\
+C’est dans ce contexte que s’inscrit le présent projet de fin d’études, qui vise à concevoir et développer une plateforme de visualisation des données météorologiques en temps réel. Cette plateforme repose sur l’exploitation d’une base de données moderne, couplée à une interface utilisateur interactive intégrant des graphiques dynamiques, des cartes géographiques et des mécanismes d’alerte. L’objectif est de faciliter l’accès à l’information météorologique, d’améliorer la compréhension des conditions climatiques actuelles et futures, et de contribuer à une meilleure prise de décision par les utilisateurs.\\ \\
+Ce projet constitue également une opportunité de mise en pratique des compétences acquises au cours du cursus académique, notamment en conception de systèmes informatiques, en développement d’applications web et mobiles, en gestion de données temps réel et en intégration de solutions technologiques orientées utilisateur. Il s’inscrit ainsi à la fois dans une démarche scientifique, technique et sociétale.
+
+
+\clearpage
+\section{Météorologie}
+Avant de rentrer dans le vif du sujet, voyons ce que c'est la météorologie. c'est une discipline scientifique qui étudie l’atmosphère terrestre et les phénomènes physiques qui s’y produisent à court terme. Elle vise principalement à observer, analyser et prévoir l’évolution des conditions atmosphériques, communément appelées le temps. Cette science repose sur l’étude de variables fondamentales telles que la température de l’air, la pression atmosphérique, l’humidité, le vent, les précipitations et le rayonnement solaire.
+
+L’atmosphère terrestre est une enveloppe gazeuse complexe et dynamique, composée majoritairement d’azote et d’oxygène, ainsi que de gaz en faibles proportions comme la vapeur d’eau et le dioxyde de carbone. Les interactions entre ces éléments, sous l’effet de l’énergie solaire et de la rotation de la Terre, sont à l’origine des différents phénomènes météorologiques tels que les nuages, les vents, les pluies, les orages et les variations de température.
+
+La météorologie moderne repose sur trois étapes essentielles.
+La première est l’observation, qui consiste à mesurer les paramètres atmosphériques à l’aide d’instruments spécifiques (stations météorologiques, ballons-sondes, radars et satellites). La deuxième est l’analyse, qui permet d’interpréter les données collectées afin de décrire l’état actuel de l’atmosphère. Enfin, la troisième est la prévision, qui utilise des modèles mathématiques et numériques pour anticiper l’évolution des conditions météorologiques sur des échelles de temps allant de quelques heures à plusieurs jours.
+
+Grâce aux progrès scientifiques et technologiques, la météorologie s’appuie aujourd’hui sur des systèmes informatiques puissants capables de traiter de grandes quantités de données en temps réel. Ces avancées ont considérablement amélioré la fiabilité des prévisions météorologiques et renforcé la capacité des sociétés à anticiper et à gérer les phénomènes météorologiques extrêmes.
+
+La météorologie occupe ainsi une place centrale dans de nombreux secteurs, notamment l’agriculture, l’aviation, la navigation maritime, la gestion des risques naturels, l’énergie et la protection civile. Elle constitue un outil fondamental pour la prise de décision, la planification et la sécurité des populations.
+
+
+\clearpage
+\section{ Importance des données}
+Les données météorologiques représentent l’ensemble des informations mesurées sur l’état de l’atmosphère à un moment donné ou sur une période déterminée. Elles constituent la base essentielle de toute analyse météorologique, car elles permettent de décrire, comprendre et prévoir l’évolution des conditions atmosphériques. Sans données fiables et continues, la météorologie ne peut remplir efficacement son rôle scientifique et opérationnel.
+
+L’importance de ces données réside avant tout dans leur contribution à la prévision météorologique. Les modèles de prévision reposent sur des observations précises de paramètres tels que la température, la gpression, l’humidité, le vent et les précipitations. Plus les données sont nombreuses, bien réparties géographiquement et régulièrement mises à jour, plus les prévisions produites sont fiables. Les données météorologiques jouent ainsi un rôle clé dans l’anticipation des phénomènes dangereux et la réduction des risques naturels.
+
+Dans de nombreux secteurs socio-économiques, les données météorologiques constituent un outil stratégique de prise de décision. En agriculture, elles permettent d’optimiser les périodes de semis, d’irrigation et de récolte. Dans les transports, notamment l’aviation et la navigation maritime, elles sont indispensables pour assurer la sécurité des opérations. Elles interviennent également dans la gestion des ressources en eau, la production d’énergie renouvelable et la planification des activités humaines.
+
+Les données météorologiques sont également essentielles pour la prévention et la gestion des catastrophes naturelles. L’analyse des séries de données permet d’identifier des tendances, de détecter des anomalies et d’émettre des alertes précoces en cas de conditions météorologiques extrêmes. Leur exploitation contribue ainsi à protéger les populations, les infrastructures et l’environnement.
+
+Avec le développement des technologies numériques, l’importance des données météorologiques s’est renforcée à travers leur diffusion en temps réel et leur visualisation interactive. La transformation de données brutes en informations claires, accessibles et compréhensibles permet d’élargir leur utilisation au-delà des experts, en les rendant exploitables par les décideurs, les institutions et le grand public. Les données météorologiques deviennent ainsi un levier majeur pour la sensibilisation, l’adaptation aux changements climatiques et le développement durable.
+
+\clearpage
+\section{Les données météorologique en Haïti}
+En Haïti, la collecte et la diffusion des données météorologiques sont assurées principalement par l’Unité Hydrométéorologique d’Haïti (UHM), rattachée au Ministère de l’Agriculture, des Ressources Naturelles et du Développement Rural (MARNDR). Cette institution est chargée de produire des prévisions atmosphériques, d’analyser les observations météorologiques et de diffuser ces informations auprès des autorités, des secteurs économiques et du public général via des bulletins officiels et des plateformes en ligne. 
+Haiti Climat
++1
+
+Cependant, l’accès aux données météorologiques en Haïti reste limité en raison de plusieurs contraintes structurelles et techniques. Le pays dispose d’un nombre restreint de stations météorologiques réparties sur le territoire, ce qui restreint la densité et la représentativité des observations disponibles pour les analyses et les prévisions. L’insuffisance d’équipements automatiques modernes, combinée à un entretien irrégulier du matériel, compromet souvent la continuité et la qualité des séries de données recueillies. 
+weatheringrisk.org
++1
+
+Ces défis se doublent de difficultés logistiques et institutionnelles : le financement limité des réseaux de collecte, la réduction budgétaire des stations manuelles par le ministère compétent, et le manque de ressources pour la maintenance et le remplacement des composants essentiels entravent le bon fonctionnement du système d’observation. De plus, certaines stations automatiques ont fait l’objet de vols de composants (comme des panneaux solaires) dans des zones isolées, ce qui met en évidence la nécessité d’une implication communautaire accrue pour protéger les installations sur le terrain. 
+Haiti Climat
+
+À cela s’ajoutent des contraintes d’accès aux données satellitaires internationales, dont Haïti dépend souvent pour la surveillance des phénomènes cycloniques et des événements météorologiques extrêmes. L’absence de moyens techniques et financiers pour générer ses propres données satellitaires rend le pays vulnérable aux interruptions de partage de données provenant de partenaires internationaux, ce qui peut réduire la précision des prévisions disponibles localement. 
+AyiboPost
+
+\clearpage
+\subsection{Réseau de stations météorologiques}
+Le réseau de stations météorologiques constitue l’élément central du système d’observation atmosphérique en Haïti. Il est principalement coordonné par l’Unité Hydrométéorologique d’Haïti (UHM), institution nationale chargée de la surveillance météorologique et hydrologique du pays, sous la tutelle du Ministère de l’Agriculture, des Ressources Naturelles et du Développement Rural (MARNDR). Ce réseau est composé de stations météorologiques manuelles et automatiques réparties sur différentes zones du territoire national, permettant la mesure de paramètres essentiels tels que la température, les précipitations, l’humidité, la pression atmosphérique et le vent.
+
+Cependant, la densité spatiale du réseau reste insuffisante au regard de la topographie complexe du pays et de sa forte exposition aux risques climatiques, notamment les cyclones, les inondations et les périodes de sécheresse. Plusieurs rapports soulignent que de nombreuses stations sont concentrées dans certaines régions, laissant d’autres zones faiblement couvertes, ce qui limite la représentativité des données collectées. De plus, le fonctionnement du réseau est souvent affecté par des contraintes techniques telles que le manque de maintenance régulière, l’obsolescence des équipements, les interruptions d’alimentation électrique et, dans certains cas, le vandalisme ou le vol de matériel.
+
+Afin de renforcer ce dispositif, des initiatives complémentaires ont été mises en place avec l’appui de partenaires nationaux et internationaux, notamment des projets de stations météorologiques automatiques à faible coût destinées aux écoles, universités et collectivités locales. Ces initiatives visent à améliorer la couverture spatiale des observations et à favoriser une meilleure disponibilité des données en temps réel. Malgré ces efforts, l’exploitation efficace du réseau reste confrontée à des défis organisationnels et financiers, ce qui impacte directement l’accessibilité, la continuité et la fiabilité des données météorologiques en Haïti.
+
+\clearpage
+\subsection{Défis actuels dans la collecte et la gestion des données}
+    
+\section{Enjeux de l’accès à l’information météo en temps réel}
+
+\section{Problématique}
+
+\section{Panorama du projet}
