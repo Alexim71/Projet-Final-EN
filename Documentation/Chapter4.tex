@@ -1,4 +1,4 @@
-\chapter{Conception}
+\chapter{Analyse et Conception}
 
 \section{Modélisation}
 Ce chapitre aborde la phase de conception du projet, une étape clé qui permet de transformer les besoins identifiés en une architecture technique claire et structurée. Nous y présentons nos choix méthodologiques, notamment l’usage du langage UML pour modéliser le système. Les diagrammes élaborés définissent le fonctionnement et l’organisation de l’application avant son implémentation. Cette démarche assure une base solide pour le développement et facilite la maintenance future du système.
@@ -99,7 +99,8 @@ Ce diagramme présente les différentes interactions possibles entre l’acteur 
     \item Configurer l’application
     \item S’authentifier
 \end{itemize} \\
-La fonctionnalité centrale du système est la consultation de la météo en temps réel. À partir de celle-ci, l’utilisateur peut effectuer certaines actions complémentaires telles que la recherche d’une ville, la visualisation des graphiques météorologiques ou la réception d’alertes. Ces fonctionnalités sont représentées dans le diagramme par des relations \texttt{<<extend>>}, indiquant qu’elles viennent enrichir la consultation des données sans être obligatoires.\\
+
+\noindent La fonctionnalité centrale du système est la consultation de la météo en temps réel. À partir de celle-ci, l’utilisateur peut effectuer certaines actions complémentaires telles que la recherche d’une ville, la visualisation des graphiques météorologiques ou la réception d’alertes. Ces fonctionnalités sont représentées dans le diagramme par des relations \texttt{<<extend>>}, indiquant qu’elles viennent enrichir la consultation des données sans être obligatoires.\\
 Par ailleurs, la configuration de l’application nécessite que l’utilisateur soit préalablement identifié. Pour cette raison, le cas d’utilisation \textit{Configurer l’application} inclut le cas \textit{S’authentifier} à travers une relation \texttt{<<include>>}. Cette organisation permet de garantir que certaines opérations, notamment celles liées à la personnalisation des paramètres, soient accessibles uniquement aux utilisateurs authentifiés.
 \begin{figure}[H]
     \centering
@@ -111,6 +112,7 @@ Par ailleurs, la configuration de l’application nécessite que l’utilisateur
 \subsubsection{Diagramme de cas d’utilisation – Administrateur}
 
 Ce diagramme illustre les différentes interactions entre l’acteur \textbf{Administrateur} et la plateforme URGmetEO. Contrairement à l’utilisateur classique, l’administrateur dispose de privilèges lui permettant de gérer les ressources du système, notamment les stations météorologiques et les comptes utilisateurs. Les principaux cas d’utilisation associés à cet acteur sont les suivants :
+
 \begin{itemize}
     \item Ajouter une station
     \item Lister les stations
@@ -123,6 +125,7 @@ Ce diagramme illustre les différentes interactions entre l’acteur \textbf{Adm
     \item Désactiver un compte utilisateur
     \item S’authentifier
 \end{itemize}\\
+
 
 \noindent Dans ce diagramme, la gestion des stations repose principalement sur le cas d’utilisation \textit{Lister les stations}. À partir de cette fonctionnalité, l’administrateur peut effectuer différentes actions telles que l’activation, la désactivation ou la modification d’une station. Ces opérations sont représentées par des relations \texttt{<<extend>>}, indiquant qu’elles viennent compléter la consultation de la liste des stations.\\
 
@@ -183,67 +186,4 @@ Enfin, dans l’implémentation actuelle, la classe \textbf{Station} ne possède
 
 
 \section{Hiérarchie et architecture de l’application}
-\\ \\
-\section {Implémentation des API}
-\subsection{Un API c'est quoi?}
-En informatique, une interface de programmation d’application (API – Application Programming Interface) désigne un ensemble structuré de mécanismes logiciels permettant à une application de mettre certaines de ses fonctionnalités à la disposition d’autres applications.
-Elle définit notamment un cadre normalisé composé de fonctions, de méthodes, de classes et de règles d’accès, servant d’intermédiaire entre un système fournisseur de services et des systèmes consommateurs.
 
-Une API agit ainsi comme une couche d’abstraction, masquant les détails internes d’implémentation du logiciel tout en offrant des points d’accès clairement définis. Elle peut être fournie sous forme de bibliothèque logicielle ou de service web, et s’accompagne généralement d’une documentation précisant les modalités d’utilisation, les paramètres attendus ainsi que les types de réponses retournées.
-
-On parle d’API dès lors qu’un système informatique autorise une interaction externe avec ses ressources ou ses services de manière contrôlée et standardisée. Dans ce cas, le système est dit exposer une API, et impose des contraintes spécifiques telles que l’authentification, les droits d’accès ou le format des échanges, garantissant ainsi la sécurité et la cohérence des communications entre applications.
-
-
-\subsection{Rôle des API dans le système}
-Dans notre travail, les API jouent un rôle central dans l’architecture globale de l’application, en assurant la communication entre les différents composants logiciels. 
-
-En premier lieu, les API assurent la gestion et le traitement des données au niveau du backend. Elles orchestrent la validation des informations reçues, leur structuration selon les modèles de données définis, ainsi que leur stockage dans la base de données MongoDB. Cette séparation claire entre la logique métier et la couche de présentation améliore la maintenabilité, la robustesse et l’évolutivité du système.
-
-Ensuite, les API jouent un rôle clé dans la mise à disposition des données en temps réel vers l’interface utilisateur. Elles permettent au frontend d’accéder aux informations météorologiques actualisées, à l’historique des mesures et aux données agrégées nécessaires à la visualisation sous forme de graphiques, de tableaux ou de cartes interactives.Une approche favorise une expérience utilisateur fluide et réponsi, essentielle dans un contexte de suivi météorologique.
-
-Enfin, les API contribuent à la sécurisation du système en contrôlant les accès aux ressources. Certaines routes sont protégées par des mécanismes d’authentification et d’autorisation, garantissant que seules les entités légitimes (administrateurs, systèmes autorisés ou utilisateurs enregistrés) peuvent accéder ou modifier les données sensibles. Les API constituent ainsi un élément fondamental pour assurer la confidentialité, l’intégrité et la fiabilité des informations échangées.
-
-\subsection{Architecture des API REST}
-L’architecture REST (Representational State Transfer) c'est un style architectural utilisé pour la conception d’API dans les systèmes distribués et les applications web modernes. Elle repose sur un ensemble de principes visant à garantir des échanges simples, stateless, évolutifs et interopérables entre les différents composants d’un système.\\ \\
-Dans une architecture REST les ressources du système sont identifiées de manière unique à l’aide d’URI (Uniform Resource Identifier). Chaque ressource représente une entité manipulable, telle qu’une station météorologique, un capteur, un utilisateur ou une donnée de mesure. Les interactions avec ces ressources s’effectuent à travers des méthodes HTTP standardisées, notamment :\\ \\
-GET : récupération des données,\\
-POST : création de nouvelles ressources,\\
-PUT / PATCH : mise à jour des ressources existantes,\\
-DELETE : suppression des ressources.\\
-
-Il y a un principe fondamental dans l’architecture REST cest l’absence d’état côté serveur (statelessness). Chaque requête envoyée par le client contient l’ensemble des informations nécessaires à son traitement, ce qui permet au serveur de ne pas conserver de contexte entre deux requêtes successives. C'est une caractéristique qui a pour but d'améliorer la scalabilité, la fiabilité et la simplicité de maintenance du système.
-
-Dans le cadre notre projet, l’architecture REST est implémentée au moyen d’un serveur backend basé sur Node.js et le framework Express.js. Les API REST assurent la réception des données météorologiques transmises par les stations, leur validation, puis leur stockage dans la base de données MongoDB. Les réponses du serveur sont généralement formatées en JSON (JavaScript Object Notation), un format léger et facilement exploitable par les applications clientes.\\ \\
-Pour finir, l’architecture REST facilite également la séparation des responsabilités entre les différentes couches de l’application. Le frontend consomme les API pour afficher les données météorologiques en temps réel ou sous forme d’historique, tandis que le backend se concentre sur la logique métier, la gestion des données et la sécurité. Cette approche modulaire permet une évolution indépendante des différentes parties du système. L’adoption d’une architecture REST dans notre projet offre une solution flexible, standardisée et robuste adaptée aux exigences d’un système de visualisation de données météorologiques en temps réel et à l’intégration future de nouveaux services ou dispositifs IoT.
-
-\subsection{Organisation du projet backend}
-L’organisation du projet au niveau backend constitue un élément fondamental dans la conception et l’implémentation de notre système proposé. Elle vise à structurer le code serveur de manière claire, modulaire et cohérente, afin de faciliter la maintenance, l’évolution et la compréhension globale de l’application.
-
-Dans notre projet, le backend a été développé avec Node.js et Express.js en raison de leur simplicité et de leur efficacité pour les applications web modernes. Node.js permet de traiter plusieurs requêtes de manière asynchrone, ce qui est particulièrement adapté à un système recevant et diffusant des données en temps réel comme le notre. Express.js, quant à lui, offre un cadre souple pour la création d’API REST et facilite l’organisation du code, notamment la gestion des routes et de la logique applicative. L’association de ces deux technologies permet ainsi de mettre en place un backend clair, performant et évolutif, répondant aux besoins de notre plateforme de visualisation des données météorologiques en temps réel.
-
-En adoptant une organisation inspirée du modèle MVC (Model–View–Controller). Cette approche repose sur une séparation claire des responsabilités entre les différentes couches du système. Le dossier routes regroupe l’ensemble des points d’entrée de l’API. Chaque fichier de route définit les endpoints accessibles via le protocole HTTP et associe chaque requête à une méthode précise (GET, POST, PUT, DELETE). Par exemple, le fichier data.js gère les routes relatives aux mesures météorologiques et permet soit la récupération des données, soit l’ajout de nouvelles mesures dans le système.
-
-Le dossier models contient les modèles de données définis à l’aide de Mongoose, qui assurent la correspondance entre les objets manipulés par l’application et les documents stockés dans la base de données MongoDB. Les fichiers User.js, Station.js, Device.js et Data.js décrivent la structure des données, les types des champs et les contraintes associées, garantissant ainsi l’intégrité et la cohérence des informations stockées.
-
-Le dossier controllers centralise la logique métier de l’application. Il assure le traitement des requêtes reçues par les routes, la validation des données, la gestion des erreurs et la construction des réponses envoyées aux clients. Par exemple, le fichier authController.js regroupe les fonctionnalités liées à l’authentification et à la gestion des utilisateurs, permettant ainsi de séparer clairement la logique métier des points d’accès réseau.
-
-Cette organisation modulaire permet au backend de rester lisible, évolutif et sécurisé. Elle facilite l’ajout de nouvelles fonctionnalités sans perturber les composants existants, réduit les risques d’erreurs liés à un code monolithique et favorise un travail collaboratif efficace, notamment dans un contexte de développement versionné avec GitHub.
-\subsection{Modèles de données}
-\subsection{Contrôleurs et logique métier}
-\subsubsection{Routes et endpoints }
-\subsection{Sécurité et authentification des API}
-
-\section{Ergonomie et conception UI/UX}
-
-\section{Implémentation de la base de données}
-\subsection{Structure de la base MongoDB}
-\subsection{Flux de données}
-
-\section{Visualisation et traitement des données}
-\subsection{ Intégration des graphiques (tendances)}
-\subsection{Intégration des cartes interactives}
-
-
-\section{Publication et mise en ligne de l’interface}
-
-\section{Technologies utilisées}
