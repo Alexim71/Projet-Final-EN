@@ -1,0 +1,94 @@
+\pagenumbering{arabic}
+
+\chapter{Contexte}
+
+
+\section{Introduction}
+Les phénomènes météorologiques influencent de nombreux aspects de la vie quotidienne, notamment l’agriculture, les transports, la gestion des risques naturels et la planification des activités humaines. Dans un contexte marqué par les effets du changement climatique, l’accès à des informations météorologiques fiables et actualisées devient de plus en plus essentiel. Cependant, dans plusieurs pays, notamment en Haïti, les données météorologiques restent encore insuffisamment exploitées. Bien que des stations météorologiques soient progressivement mises en place, les informations collectées sont souvent difficiles d’accès, dispersées ou présentées sous une forme peu compréhensible pour le grand public.
+
+\noindent Par ailleurs, les avancées technologiques dans le domaine du développement web, des bases de données et de la visualisation interactive offrent aujourd’hui des solutions efficaces pour faciliter l’exploitation des données en temps réel. Ces technologies permettent notamment de transformer des données brutes en informations claires et accessibles à travers des interfaces intuitives.
+
+\noindent C’est dans cette perspective que s’inscrit le présent projet de fin d’études, qui est de concevoir et de développer une application mobile météo qui permette aux utilisateurs d'accéder facilement 
+et rapidement aux informations météorologiques pertinentes, où qu'ils se trouvent.
+
+\noindent Le présent mémoire est structuré en plusieurs chapitres. Le premier chapitre présente le contexte du projet, notamment l’institution d’accueil et les enjeux liés aux données météorologiques en Haiti. Le deuxième chapitre est consacré à la présentation du projet et à l’analyse des besoins. Les chapitres suivants détaillent la conception, la réalisation et les résultats obtenus.
+\newpage
+
+\section{Présentation de URGEO}
+L’URGéo (Unité de Recherche en Géosciences) est une structure académique rattachée à la Faculté des Sciences de l’Université d’État d’Haïti (FDS-UEH). Elle constitue un centre de recherche spécialisé dans le domaine des géosciences, ayant pour objectif principal de contribuer à la production et à la valorisation des connaissances scientifiques relatives au territoire haïtien.
+
+\noindent L'une des missions de l’URGéo est de faire progresser la connaissance du sol et du sous-sol de l’écorce terrestre, en mettant un accent particulier sur le territoire national haïtien. Cette démarche inclut notamment la caractérisation des formations géologiques ainsi que l’étude des phénomènes endogènes et exogènes qui les affectent. Ainsi, l’unité développe des outils et des méthodes scientifiques permettant d’analyser et de mieux comprendre les dynamiques environnementales.\\
+
+\noindent Dans cette perspective, les domaines d’intervention de l’URGéo couvrent plusieurs disciplines des géosciences, notamment la minéralogie, la pétrographie, la tectonique, la stratigraphie, la géotechnique, la géophysique, la sismologie, la géochimie et la métallogénie. Toutefois, afin d’assurer une meilleure efficacité, l’unité concentre ses activités sur certains axes prioritaires tels que la géotechnique, la géophysique appliquée, la néotectonique et la sismologie appliquée.\\
+
+\noindent Par ailleurs, l’URGéo s’articule autour de trois missions principales, à savoir la recherche, l’enseignement et le service à la communauté. Elle mène des travaux scientifiques visant à proposer des solutions adaptées aux problématiques liées au territoire haïtien, tout en contribuant à la formation des étudiants et en apportant un appui technique dans des projets concrets.\\
+
+\noindent Dans le cadre de ses activités, l’URGéo participe à plusieurs projets de recherche et d’innovation. Parmi lesquels, on peut citer RECICAMET, qui vise à renforcer le réseau d’observation hydrométéorologique à travers l’installation de stations météorologiques, ainsi que d’autres initiatives orientées vers la collecte, la gestion et la valorisation des données géoscientifiques. Ces projets témoignent de l’engagement de l’unité dans le développement de solutions adaptées aux réalités du pays.\\
+
+\noindent En outre, l’URGéo regroupe des chercheurs expérimentés ainsi que de jeunes universitaires, favorisant un environnement dynamique de recherche et d’apprentissage. Cette collaboration contribue au renforcement des capacités scientifiques locales et à la promotion de l’innovation dans le domaine des géosciences en Haïti. l’URGéo se positionne comme un acteur clé dans la compréhension, la gestion et la valorisation des ressources géologiques et environnementales d'Haiti.
+
+\clearpage
+\section{Météorologie}
+Avant de rentrer dans le vif du sujet, voyons ce que c'est la météorologie. De manière simple, la météorologie est la science qui étudie l’atmosphère terrestre et les phénomènes qui s’y produisent, tels que les nuages, les vents, les précipitations ou encore les variations de température. Elle a pour objectif principal de comprendre ces phénomènes afin de pouvoir prévoir l’évolution du temps à court terme.
+
+\noindent Le terme « météorologie » provient du grec ancien meteōros, qui signifie « ce qui se trouve dans les airs », et logia, qui renvoie à l’étude ou à la connaissance. Cette origine reflète bien la nature de cette discipline, centrée sur l’observation et la compréhension de ce qui se passe dans l’atmosphère.\\ 
+
+\noindent L’atmosphère terrestre constitue une enveloppe gazeuse dynamique entourant la Terre, composée principalement d’azote et d’oxygène, ainsi que d’autres gaz en plus faibles proportions, comme la vapeur d’eau et le dioxyde de carbone. Sous l’effet de l’énergie solaire et de la rotation de la Terre, ces différents éléments interagissent en permanence, donnant naissance à des phénomènes météorologiques variés tels que les nuages, les vents, les pluies ou les orages.\\
+
+\noindent La météorologie repose généralement sur trois étapes fondamentales. Tout d’abord, l’observation, qui consiste à mesurer les paramètres atmosphériques à l’aide d’instruments tels que les stations météorologiques, les radars, les satellites ou encore les ballons-sondes. Ensuite, l’analyse permet d’interpréter ces données afin de décrire l’état actuel de l’atmosphère. Enfin, la prévision s’appuie sur des modèles mathématiques et numériques pour anticiper l’évolution des conditions météorologiques sur des périodes allant de quelques heures à plusieurs jours.
+
+\noindent Avec les avancées technologiques, la météorologie moderne utilise des systèmes informatiques capables de traiter de grandes quantités de données en temps réel. Cela permet d’améliorer la précision des prévisions et de mieux anticiper les phénomènes météorologiques extrêmes. 
+
+\noindent De ce fait, la météorologie occupe une place essentielle dans de nombreux domaines tels que l’agriculture, l’aviation, la navigation maritime, la gestion des risques naturels et la protection civile. Elle constitue donc un outil indispensable pour la prise de décision et la sécurité des populations.
+
+
+
+
+\clearpage
+\section{ Importance des données météorologiques}
+Les données météorologiques regroupent les informations mesurées sur l’état de l’atmosphère, telles que la température, la pression, l’humidité et le vent. Elles constituent la base de toute analyse et prévision météorologique.
+
+En effet, ces données permettent d’alimenter les modèles de prévision et d’anticiper les conditions climatiques. Elles jouent également un rôle important dans plusieurs domaines, notamment l’agriculture, les transports et la gestion des risques naturels. L’analyse de ces données facilite la détection des phénomènes extrêmes et contribue à la protection des populations.
+
+Enfin, grâce aux technologies numériques, leur exploitation en temps réel et leur visualisation améliorent leur accessibilité et leur utilisation.
+
+\section{Les données météorologique en Haïti}
+En Haïti, la collecte et la diffusion des données météorologiques sont assurées principalement par l’Unité Hydrométéorologique d’Haïti (UHM), rattachée au Ministère de l’Agriculture, des Ressources Naturelles et du Développement Rural (MARNDR). Cette institution est chargée de produire des prévisions atmosphériques, d’analyser les observations météorologiques et de diffuser ces informations auprès des autorités, des secteurs économiques et du public général via des bulletins officiels et des plateformes en ligne.\\
+
+\noindent Cependant, l’accès aux données météorologiques en Haïti reste limité en raison de plusieurs contraintes structurelles et techniques. Le pays dispose d’un nombre restreint de stations météorologiques réparties sur le territoire, ce qui restreint la densité et la représentativité des observations disponibles pour les analyses et les prévisions. L’insuffisance d’équipements automatiques modernes, combinée à un entretien irrégulier du matériel, compromet souvent la continuité et la qualité des séries de données recueillies. 
+
+
+\noindent Ces défis se doublent de difficultés logistiques et institutionnelles : le financement limité des réseaux de collecte, la réduction budgétaire des stations manuelles par le ministère compétent, et le manque de ressources pour la maintenance et le remplacement des composants essentiels entravent le bon fonctionnement du système d’observation. De plus, certaines stations automatiques ont fait l’objet de vols de composants (comme des panneaux solaires) dans des zones isolées, ce qui met en évidence la nécessité d’une implication communautaire accrue pour protéger les installations sur le terrain. 
+
+\noindent À cela s’ajoutent des contraintes d’accès aux données satellitaires internationales, dont Haïti dépend souvent pour la surveillance des phénomènes cycloniques et des événements météorologiques extrêmes. L’absence de moyens techniques et financiers pour générer ses propres données satellitaires rend le pays vulnérable aux interruptions de partage de données provenant de partenaires internationaux, ce qui peut réduire la précision des prévisions disponibles localement. 
+AyiboPost
+
+\clearpage
+\subsection{Réseau de stations météorologiques}
+Le réseau de stations météorologiques constitue l’élément central du système d’observation atmosphérique en Haïti. Il est principalement coordonné par l’Unité Hydrométéorologique d’Haïti (UHM), institution nationale chargée de la surveillance météorologique et hydrologique du pays, sous la tutelle du Ministère de l’Agriculture, des Ressources Naturelles et du Développement Rural (MARNDR). Ce réseau est composé de stations météorologiques manuelles et automatiques réparties sur différentes zones du territoire national, permettant la mesure de paramètres essentiels tels que la température, les précipitations, l’humidité, la pression atmosphérique et le vent.\\
+
+\noindent Cependant, la densité spatiale du réseau reste insuffisante au regard de la topographie complexe du pays et de sa forte exposition aux risques climatiques, notamment les cyclones, les inondations et les périodes de sécheresse. Plusieurs rapports soulignent que de nombreuses stations sont concentrées dans certaines régions, laissant d’autres zones faiblement couvertes, ce qui limite la représentativité des données collectées. De plus, le fonctionnement du réseau est souvent affecté par des contraintes techniques telles que le manque de maintenance régulière, l’obsolescence des équipements, les interruptions d’alimentation électrique et, dans certains cas, le vandalisme ou le vol de matériel.
+
+\noindent Afin de renforcer ce dispositif, des initiatives complémentaires ont été mises en place avec l’appui de partenaires nationaux et internationaux, notamment des projets de stations météorologiques automatiques à faible coût destinées aux écoles, universités et collectivités locales. Ces initiatives visent à améliorer la couverture spatiale des observations et à favoriser une meilleure disponibilité des données en temps réel. Malgré ces efforts, l’exploitation efficace du réseau reste confrontée à des défis organisationnels et financiers, ce qui impacte directement l’accessibilité, la continuité et la fiabilité des données météorologiques en Haïti.
+
+\clearpage
+\subsection{Défis actuels dans la collecte et la gestion des données}
+La collecte et la gestion des données météorologiques en Haïti font face à plusieurs défis majeurs. Tout d’abord, l’insuffisance et la mauvaise répartition des stations limitent la couverture du territoire, ce qui entraîne des données incomplètes ou peu représentatives.
+
+Ensuite, des contraintes techniques telles que le manque de maintenance, l’obsolescence des équipements et les interruptions d’alimentation affectent la continuité des mesures. À cela s’ajoutent des problèmes liés à la gestion des données, notamment leur dispersion, leur format hétérogène et leur accès limité.
+
+Par conséquent, ces difficultés réduisent la qualité, la disponibilité et l’exploitation des données météorologiques, ce qui limite leur utilisation dans la prise de décision et la prévention des risques.
+
+L’accès aux données météorologiques en temps réel constitue aujourd’hui un enjeu majeur. En effet, la disponibilité rapide de l’information permet d’améliorer la réactivité face aux phénomènes climatiques et de faciliter la prise de décision.
+
+Cependant, en Haïti, l’accès à ces informations reste encore limité, notamment en raison du manque d’outils adaptés pour la collecte, le traitement et la visualisation des données. Les données sont souvent difficiles à interpréter, ce qui réduit leur utilisation par les acteurs concernés et le grand public.
+
+Ainsi, la mise en place de solutions permettant de centraliser, traiter et visualiser les données en temps réel apparaît comme une nécessité pour améliorer leur accessibilité et leur exploitation.
+
+\section{Panorama du projet}
+
+Face aux limites observées dans la collecte, la gestion et l’accès aux données météorologiques, il devient nécessaire de proposer une solution adaptée au contexte haïtien.
+
+Dans cette optique, le présent projet vise à concevoir une plateforme permettant de visualiser les données météorologiques en temps réel à partir des stations installées sur le territoire. L’objectif est de faciliter l’accès à l’information, d’améliorer sa compréhension et de rendre son exploitation plus efficace.
+
+Ce projet s’inscrit ainsi dans une démarche visant à valoriser les données existantes et à répondre aux besoins croissants en matière d’information météorologique.
