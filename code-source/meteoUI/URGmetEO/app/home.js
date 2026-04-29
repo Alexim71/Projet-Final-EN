@@ -13,11 +13,13 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import Svg, { Circle, Defs, Line, LinearGradient, Path, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Circle, Defs, Line, LinearGradient, RadialGradient, Rect, Stop } from "react-native-svg";
 import { apiClient } from './api';
 import { getSearchSuggestions, searchHaitiLocation } from './haiti-locations';
 import { convertTemperature, convertWindSpeed, convertPressure } from "./utils/conversions";
 import { useSettings } from "../context/SettingsContext";
+import { useAuth } from "../context/AuthContext";
+import { applyNotificationPrefs } from "./services/notificationService";
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 250;
@@ -30,41 +32,44 @@ const LOCATION_CHANGE_THRESHOLD = 0.001; // ~100m - seuil plus bas pour réactiv
 const LOCATION_ACCURACY = Location.Accuracy.Balanced;
 
 
-const renderForecastDays = () => {
-  // Données de prévisions simulées (à remplacer par votre API)
-  const forecastDays = [
-    { day: 'Auj.', temp: '28°', condition: '☀️', rain: '10%' },
-    { day: 'Demain', temp: '27°', condition: '⛅', rain: '20%' },
-    { day: 'Jeu.', temp: '26°', condition: '🌧️', rain: '60%' },
-    { day: 'Ven.', temp: '25°', condition: '⛈️', rain: '80%' },
-    { day: 'Sam.', temp: '26°', condition: '🌦️', rain: '40%' },
-    { day: 'Dim.', temp: '27°', condition: '⛅', rain: '30%' },
-    { day: 'Lun.', temp: '28°', condition: '☀️', rain: '10%' },
-    { day: 'Mar.', temp: '29°', condition: '☀️', rain: '5%' },
-    { day: 'Mer.', temp: '28°', condition: '⛅', rain: '20%' },
-    { day: 'Jeu.', temp: '27°', condition: '🌦️', rain: '50%' },
-  ];
+const DAY_NAMES = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
 
-  return (
-    <ScrollView 
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.forecastScrollView}
-      contentContainerStyle={styles.forecastScrollContent}
-    >
-      {forecastDays.map((day, index) => (
-        <View key={index} style={styles.forecastDayCard}>
-          <Text style={styles.forecastDay}>{day.day}</Text>
-          <Text style={styles.forecastCondition}>{day.condition}</Text>
-          <Text style={styles.forecastTemp}>{day.temp}</Text>
-          <View style={styles.rainInfo}>
-            <Text style={styles.rainIcon}>💧</Text>
-            <Text style={styles.rainPercent}>{day.rain}</Text>
-          </View>
-        </View>
-      ))}
-    </ScrollView>
-  );
+// ── Phase lunaire (calcul algorithmique, pas d'API requise) ──────────────────
+const LUNAR_CYCLE = 29.530588853;
+const KNOWN_NEW_MOON = new Date('2000-01-06T18:14:00Z');
+
+function getMoonPhase(date = new Date()) {
+  const elapsed  = (date - KNOWN_NEW_MOON) / 86400000;
+  const cyclePos = ((elapsed % LUNAR_CYCLE) + LUNAR_CYCLE) % LUNAR_CYCLE;
+  const illum    = Math.round(50 * (1 - Math.cos(2 * Math.PI * cyclePos / LUNAR_CYCLE)));
+  let phase, emoji;
+  if      (cyclePos <  1.85) { phase = 'Nouvelle Lune';        emoji = '🌑'; }
+  else if (cyclePos <  7.38) { phase = 'Premier Croissant';    emoji = '🌒'; }
+  else if (cyclePos <  9.22) { phase = 'Premier Quartier';     emoji = '🌓'; }
+  else if (cyclePos < 14.77) { phase = 'Gibbeux Croissant';    emoji = '🌔'; }
+  else if (cyclePos < 16.61) { phase = 'Pleine Lune';          emoji = '🌕'; }
+  else if (cyclePos < 22.15) { phase = 'Gibbeux Décroissant';  emoji = '🌖'; }
+  else if (cyclePos < 23.99) { phase = 'Dernier Quartier';     emoji = '🌗'; }
+  else                        { phase = 'Dernier Croissant';   emoji = '🌘'; }
+  const daysToFull = cyclePos < 14.77
+    ? Math.ceil(14.77 - cyclePos)
+    : Math.ceil(LUNAR_CYCLE - cyclePos + 14.77);
+  const daysToNew  = cyclePos < 0.5
+    ? Math.ceil(0.5 - cyclePos)
+    : Math.ceil(LUNAR_CYCLE - cyclePos + 0.5);
+  return { phase, emoji, illum, daysToFull, daysToNew, cyclePos };
+}
+
+function fmtSunTime(isoStr) {
+  if (!isoStr) return '--:--';
+  try { return isoStr.slice(11, 16); } catch { return '--:--'; }
+}
+
+const getRainCondition = (rainfall) => {
+  if (rainfall > 10) return '⛈️';
+  if (rainfall > 5) return '🌧️';
+  if (rainfall > 1) return '🌦️';
+  return '☀️';
 };
 
 // Fonction de distance simplifiée (plus rapide)
@@ -106,6 +111,20 @@ const getWeatherDescription = (data) => {
   if (temperature > 30) return "Chaud";
   if (temperature < 15) return "Frais";
   return "Ensoleillé";
+};
+
+const getWeatherEmoji = (data) => {
+  if (!data) return '🌤️';
+  const rainfall = data.rainfall || 0;
+  const humidity = data.humidity || 0;
+  const uv = data.uv_index || 0;
+  if (rainfall > 10) return '⛈️';
+  if (rainfall > 3)  return '🌧️';
+  if (rainfall > 0.5) return '🌦️';
+  if (humidity > 90) return '🌫️';
+  if (uv > 8)  return '☀️';
+  if (uv > 3)  return '🌤️';
+  return '⛅';
 };
 
 const WindSpeedIndicator = ({ speed = 0, direction = 0, unit = "km/h" }) => {
@@ -168,6 +187,8 @@ export default function Home() {
   const params = useLocalSearchParams();
   const [stationData, setStationData] = useState(null);
   const [weatherData, setWeatherData] = useState(null);
+  const [forecastData, setForecastData] = useState([]);
+  const [forecastDays, setForecastDays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -186,8 +207,11 @@ export default function Home() {
   const pollingRef = useRef(null);
   const locationWatchRef = useRef(null);
   const retryCountRef = useRef(0);
-  const lastApiLocationRef = useRef(null); // Dernière position utilisée pour l'API
+  const lastApiLocationRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
+  const demoModeRef = useRef(demoMode);
+  const demoStationCodeRef = useRef(demoStationCode);
+  const isFirstDemoEffect = useRef(true);
   const router = useRouter();
 
   
@@ -195,7 +219,8 @@ const [searchSuggestions, setSearchSuggestions] = useState([]);
 const [showSuggestions, setShowSuggestions] = useState(false);
 
   //const theme = useTheme(); 
-const { useCelsius, windUnit, pressureUnit } = useSettings();
+const { useCelsius, windUnit, pressureUnit, demoMode, demoStationCode, notifications } = useSettings();
+const { isLoggedIn, user, logout } = useAuth();
 const wind = convertWindSpeed(weatherData?.wind_speed || 0, windUnit);
 
 // Fonction pour gérer la saisie
@@ -324,69 +349,159 @@ const safeToFixed = (value, digits = 1, defaultValue = 0) => {
     return distance > LOCATION_CHANGE_THRESHOLD;
   };
 
-  // 4. Charger les données météo (TOUJOURS utiliser les paramètres explicites)
+  // 4. Charger les données météo
   const fetchWeatherData = async (latitude, longitude) => {
+    // --- MODE DÉMO : utiliser la station sélectionnée ---
+    if (demoModeRef.current && demoStationCodeRef.current) {
+      try {
+        setError(null);
+        const response = await apiClient.get(`/api/geo/station/${demoStationCodeRef.current}`);
+        const { station, data } = response.data;
+        if (station) {
+          setStationData(station);
+          retryCountRef.current = 0;
+          if (data) {
+            const demoProcessed = {
+              ...data,
+              temperature:     safeNumber(data.temperature, 22),
+              humidity:        safeNumber(data.humidity, 50),
+              pressure:        safeNumber(data.pressure, 1013),
+              wind_speed:      safeNumber(data.wind_speed, 0),
+              wind_direction:  safeNumber(data.wind_direction, 0),
+              feels_like:      safeNumber(data.feels_like, data.temperature || 22),
+              dew_point:       safeNumber(data.dew_point, 15),
+              uv_index:        safeNumber(data.uv_index, 0),
+              solar_radiation: safeNumber(data.solar_radiation, 0),
+              battery_level:   safeNumber(data.battery_level, 50),
+            };
+            setWeatherData(demoProcessed);
+            applyNotificationPrefs(
+              notifications,
+              {
+                temp:      `${convertTemperature(demoProcessed.temperature, useCelsius).toFixed(0)}°${useCelsius ? 'C' : 'F'}`,
+                city:      station.address || station.description || '',
+                condition: getWeatherDescription(demoProcessed),
+              },
+              {
+                lat:  currentLocation.lat,
+                lon:  currentLocation.lon,
+                city: station.address || station.description || '',
+              }
+            ).catch(e => console.log('[Notif] reschedule error:', e));
+          } else {
+            setDemoData();
+          }
+          setLastUpdate(new Date());
+          if (station._id) fetchForecast(station._id);
+        }
+      } catch (err) {
+        console.error('❌ Erreur station démo:', err.message);
+        setDemoData();
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+      return;
+    }
+    // --- FIN MODE DÉMO ---
+
     try {
       setError(null);
-      
+
       console.log(`📡 Requête météo pour: ${safeToFixed(latitude, 6)}, ${safeToFixed(longitude, 6)}`);
-      
-      const response = await apiClient.get('/api/geo/nearest', {
+
+      const response = await apiClient.get('/api/geo/realtime', {
         params: {
           lat: safeNumber(latitude),
-        lon: safeNumber(longitude)
+          lon: safeNumber(longitude),
         },
       });
-      
+
       const data = response.data;
-      
-      if (data && data.station && data.data) {
 
-
- // S'assurer que toutes les propriétés nécessaires existent
-      const processedData = {
-        ...data.data,
-        temperature: safeNumber(data.data.temperature, 22),
-        humidity: safeNumber(data.data.humidity, 50),
-        pressure: safeNumber(data.data.pressure, 1013),
-        wind_speed: safeNumber(data.data.wind_speed, 0),
-        wind_direction: safeNumber(data.data.wind_direction, 0),
-        feels_like: safeNumber(data.data.feels_like, data.data.temperature || 22),
-        dew_point: safeNumber(data.data.dew_point, 15),
-        uv_index: safeNumber(data.data.uv_index, 0),
-        solar_radiation: safeNumber(data.data.solar_radiation, 0),
-        battery_level: safeNumber(data.data.battery_level, 50),
-      };
-
+      if (data && data.station) {
         setStationData(data.station);
-        setWeatherData(processedData);
-        setLastUpdate(new Date());
-        retryCountRef.current = 0;
-        console.log("✅ Données météo mises à jour");
-        
-        // Mettre à jour la référence de la dernière position utilisée
         lastApiLocationRef.current = { lat: latitude, lon: longitude };
+        retryCountRef.current = 0;
+
+        if (data.data) {
+          const processedData = {
+            ...data.data,
+            temperature: safeNumber(data.data.temperature, 22),
+            humidity: safeNumber(data.data.humidity, 50),
+            pressure: safeNumber(data.data.pressure, 1013),
+            wind_speed: safeNumber(data.data.wind_speed, 0),
+            wind_direction: safeNumber(data.data.wind_direction, 0),
+            feels_like: safeNumber(data.data.feels_like, data.data.temperature || 22),
+            dew_point: safeNumber(data.data.dew_point, 15),
+            uv_index: safeNumber(data.data.uv_index, 0),
+            solar_radiation: safeNumber(data.data.solar_radiation, 0),
+            battery_level: safeNumber(data.data.battery_level, 50),
+          };
+          setWeatherData(processedData);
+          console.log("✅ Données météo mises à jour");
+          applyNotificationPrefs(
+            notifications,
+            {
+              temp:      `${convertTemperature(processedData.temperature, useCelsius).toFixed(0)}°${useCelsius ? 'C' : 'F'}`,
+              city:      data.station?.address || data.station?.description || '',
+              condition: getWeatherDescription(processedData),
+            },
+            {
+              lat:  latitude,
+              lon:  longitude,
+              city: data.station?.address || data.station?.description || '',
+            }
+          ).catch(e => console.log('[Notif] reschedule error:', e));
+        } else {
+          // Station trouvée mais aucune mesure disponible
+          setDemoData();
+          console.log("⚠️ Station sans données — mode démo");
+        }
+
+        setLastUpdate(new Date());
+        fetchForecastDays(latitude, longitude);
       } else {
-      throw new Error("Données incomplètes de l'API");
-    }
-    } catch (error) {
-      console.error('❌ Erreur API météo:', error);
-      retryCountRef.current += 1;
-      
-      if (retryCountRef.current >= MAX_RETRIES) {
-        setError("Connexion impossible. Mode démo activé.");
-        setPollingEnabled(false);
+        throw new Error("Réponse API invalide");
       }
-      
-      // Fallback aux données de démo
-      setDemoData();
+    } catch (error) {
+      const status = error.response?.status;
+
+      if (status === 404) {
+        // Pas de station proche : pas besoin de retry
+        console.log("⚠️ Aucune station météo à proximité");
+        setError("Aucune station à proximité. Mode démo activé.");
+        setPollingEnabled(false);
+        setDemoData();
+      } else {
+        console.error('❌ Erreur API météo:', error.message || error);
+        retryCountRef.current += 1;
+
+        if (retryCountRef.current >= MAX_RETRIES) {
+          setError("Connexion impossible. Mode démo activé.");
+          setPollingEnabled(false);
+        }
+        setDemoData();
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  // 5. Rafraîchissement manuel (utilise la position actuelle)
+  // 5. Charger les prévisions 10 jours via Open-Meteo
+  const fetchForecast = async (stationId) => { /* legacy — remplacé */ };
+
+  const fetchForecastDays = async (lat, lon) => {
+    try {
+      const res = await apiClient.get('/api/geo/forecast', { params: { lat, lon } });
+      setForecastDays(res.data?.daily || []);
+    } catch (err) {
+      console.log('Forecast Open-Meteo non disponible:', err.message);
+    }
+  };
+
+  // 6. Rafraîchissement manuel (utilise la position actuelle)
   const onRefresh = () => {
     setRefreshing(true);
     setPollingEnabled(true);
@@ -496,6 +611,21 @@ const safeToFixed = (value, digits = 1, defaultValue = 0) => {
     }
   }, [pollingEnabled]);
 
+  // 10b. Réagir aux changements de mode démo (Settings)
+  useEffect(() => {
+    demoModeRef.current = demoMode;
+    demoStationCodeRef.current = demoStationCode;
+
+    if (isFirstDemoEffect.current) {
+      isFirstDemoEffect.current = false;
+      return; // L'init effect gère le premier chargement
+    }
+
+    retryCountRef.current = 0;
+    setPollingEnabled(true);
+    fetchWeatherData(currentLocation.lat, currentLocation.lon);
+  }, [demoMode, demoStationCode]);
+
   // 11. Gérer les paramètres de navigation
   useEffect(() => {
     const newLat = parseFloat(params.lat);
@@ -566,14 +696,21 @@ const safeToFixed = (value, digits = 1, defaultValue = 0) => {
   };
 
   const handleLogin = () => {
-    router.replace({
-      pathname: "/login",
-      params: {
-        lat: currentLocation.lat,
-        lon: currentLocation.lon,
-        defaultCity: "Port-au-Prince"
-      },
-    });
+    if (isLoggedIn) {
+      Alert.alert(
+        user?.email ?? 'Compte',
+        'Que souhaitez-vous faire ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Se déconnecter', style: 'destructive', onPress: logout },
+        ]
+      );
+    } else {
+      router.push({
+        pathname: '/login',
+        params: { lat: currentLocation.lat, lon: currentLocation.lon },
+      });
+    }
   };
 
   const handleSearch = () => {
@@ -759,6 +896,15 @@ const weatherCards = weatherData ? [
     value: `${weatherData.battery_level || 0}%`,
     subtitle: "Niveau batterie"
   },
+  (() => {
+    const moon = getMoonPhase();
+    return {
+      id: 9,
+      title: "🌙 Lune",
+      value: `${moon.emoji}  ${moon.illum}%`,
+      subtitle: moon.phase,
+    };
+  })(),
   ]
 ] : [[], []];
 
@@ -901,7 +1047,9 @@ const showAlertsDetails = () => {
       <Text style={styles.settingsIcon}>⚙️</Text>
     </TouchableOpacity>
         <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginText}>Login</Text>
+          <Text style={styles.loginText}>
+            {isLoggedIn ? (user?.email?.split('@')[0] ?? '👤') : 'Login'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -932,42 +1080,38 @@ const showAlertsDetails = () => {
         </TouchableOpacity>
       </View>
       <View style={styles.positionInfo}>
-  {/* <TouchableOpacity onPress={handleUseCurrentLocation} style={styles.positionContainer}> */}
-    <View style={styles.positionIconContainer}>
-      <Image 
-        source={require('./../assets/position-icon.png')}
-        style={[
-          styles.positionIcon,
-          !locationWatchRef.current && styles.positionIconInactive
-        ]}
-      />
-      {locationWatchRef.current && (
-        <View style={styles.gpsActiveDot} />
-      )}
-
-        <Text style={styles.positionText}>
-        {currentLocation.lat.toFixed(2)}, {currentLocation.lon.toFixed(2)}
-        {locationAccuracy && ` (±${Math.round(locationAccuracy)}m)`}
-      </Text>
-    </View>
-    <View style={styles.positionTextContainer}>
-    
-      <Text style={styles.positionSubtext}>
-        Source: {currentLocation.source} • 
-        Dernier check: {lastLocationCheck ? formatTimeSinceUpdate(lastLocationCheck) : 'Jamais'} • 
-        GPS: {locationWatchRef.current ? 'ON' : 'OFF'}
-      </Text>
-    </View>
-  {/* </TouchableOpacity> */}
-</View>
+        <View style={styles.positionIconContainer}>
+          <Image
+            source={require('./../assets/position-icon.png')}
+            style={[
+              styles.positionIcon,
+              !locationWatchRef.current && styles.positionIconInactive
+            ]}
+          />
+          {locationWatchRef.current && (
+            <View style={styles.gpsActiveDot} />
+          )}
+          <Text style={styles.positionText}>
+            {!demoMode && stationData?.address
+              ? ` ${stationData.address}  •  ${currentLocation.lat.toFixed(2)}, ${currentLocation.lon.toFixed(2)}`
+              : `${currentLocation.lat.toFixed(2)}, ${currentLocation.lon.toFixed(2)}${locationAccuracy ? ` (±${Math.round(locationAccuracy)}m)` : ''}`
+            }
+          </Text>
+        </View>
+      </View>
       
       <View style={styles.updateInfoContainer}>
-        {error ? (
+        {demoMode ? (
+          <Text style={[styles.updateText, { color: '#ffd700', fontWeight: '700' }]}>
+            🧪 MODE DÉMO
+            {stationData?.address ? ` — ${stationData.address}` : demoStationCode ? ` — ${demoStationCode}` : ''}
+          </Text>
+        ) : error ? (
           <Text style={styles.errorText}>{error}</Text>
         ) : (
           <Text style={styles.updateText}>
-            Météo: {formatTimeSinceUpdate(lastUpdate)}
-            {pollingEnabled && ` • Auto: ${POLLING_INTERVAL/1000}s`}
+            Météo actuelle
+          
           </Text>
         )}
         
@@ -1009,182 +1153,270 @@ const showAlertsDetails = () => {
 
         <View style={styles.headerSpacer} />
         <View style={styles.weatherCardsSection}>
-          <View style={styles.mainContent}>
-            <Text style={styles.city}>
-              {stationData ? stationData.description : "Météo locale"}
+
+          {/* ══ HÉROS : ville + température + condition ══ */}
+          <View style={styles.heroSection}>
+            <Text style={styles.heroCity}>
+              {stationData
+                ? (stationData.address || stationData.description || 'Météo locale')
+                : 'Météo locale'}
             </Text>
-            <Text style={styles.distanceInfo}>
-              {stationData && stationData.distance ? 
-                `Distance: ${stationData.distance.toFixed(1)} km` : 
-                ""}
+            {stationData?.distance != null && (
+              <Text style={styles.heroDistance}>📍 À {stationData.distance.toFixed(1)} km</Text>
+            )}
+            <Text style={styles.heroConditionEmoji}>{getWeatherEmoji(weatherData)}</Text>
+            <Text style={styles.heroTemp}>
+              {weatherData
+                ? `${convertTemperature(weatherData.temperature, useCelsius).toFixed(0)}°`
+                : '--°'}
             </Text>
-            <Text style={styles.temp}>             
-             {weatherData ? `${convertTemperature(weatherData.temperature, useCelsius).toFixed(1)}°${useCelsius ? "C" : "F"}`: "--°"}
-            </Text>
+            <Text style={styles.heroConditionLabel}>{getWeatherDescription(weatherData)}</Text>
 
+            {weatherData && (
+              <View style={styles.heroStatsRow}>
+                <View style={styles.heroStatItem}>
+                  <Text style={styles.heroStatValue}>
+                    {convertTemperature(weatherData.feels_like || 0, useCelsius).toFixed(0)}°
+                  </Text>
+                  <Text style={styles.heroStatLabel}>Ressenti</Text>
+                </View>
+                <View style={styles.heroStatDivider} />
+                <View style={styles.heroStatItem}>
+                  <Text style={styles.heroStatValue}>{(weatherData.humidity || 0).toFixed(0)}%</Text>
+                  <Text style={styles.heroStatLabel}>Humidité</Text>
+                </View>
+                <View style={styles.heroStatDivider} />
+                <View style={styles.heroStatItem}>
+                  <Text style={styles.heroStatValue}>
+                    {(weatherData.rainfall || 0) > 0
+                      ? `${(weatherData.rainfall || 0).toFixed(1)} mm`
+                      : 'Sec'}
+                  </Text>
+                  <Text style={styles.heroStatLabel}>Précip.</Text>
+                </View>
+              </View>
+            )}
 
-
-            <View style={styles.todayTempContainer}>
-             <View style={styles.todayTempCard}>
-  <View style={styles.cardHeader}>
-    <Text style={styles.todayTempLabel}>Conditions actuelles</Text>
-    
-  </View>
-  
-  <Text style={styles.todayTempDescription}>
-    {getWeatherDescription(weatherData)}
-  </Text>
-  
-  {weatherData && (
-    <>
-      <Text style={styles.additionalInfo}>
-        Ressenti: {weatherData
-    ? `${convertTemperature(weatherData.feels_like, useCelsius).toFixed(1)}°${useCelsius ? "C" : "F"}`
-    : "--°"}
-      </Text>
-      <Text style={styles.additionalInfo}>
-        Humidité: {weatherData
-    ? `${convertWindSpeed(weatherData.wind_speed, windUnit).toFixed(1)} ${windUnit}`
-    : "--"}
-      </Text>
-      
-      {/* Indicateur d'alerte active (optionnel) */}
-      {hasActiveAlerts() && (
-        <TouchableOpacity 
-          style={styles.activeAlertIndicator}
-          onPress={() => showAlertsDetails()}
-        >
-          <Text style={styles.activeAlertText}>
-            ⚠️ Alerte météo active
-          </Text>
-        </TouchableOpacity>
-      )}
-    </>
-  )}
-</View>
-            </View>
-
-
-  <TouchableOpacity 
-  style={styles.rainMapButtonLarge}
-  onPress={() => router.push('/rainMap')}
-  activeOpacity={0.7}
->
-  {/* Dégradé de carte avec LinearGradient */}
-  <Svg style={StyleSheet.absoluteFill}>
-    <Defs>
-      <LinearGradient id="mapGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <Stop offset="0%" stopColor="#2196F3" stopOpacity="0.3" />
-        <Stop offset="50%" stopColor="#1976D2" stopOpacity="0.2" />
-        <Stop offset="100%" stopColor="#0D47A1" stopOpacity="0.3" />
-      </LinearGradient>
-    </Defs>
-    <Rect x="0" y="0" width="100%" height="100%" fill="url(#mapGradient)" />
-    
-    {/* Grille de carte adaptée à la nouvelle taille */}
-    <Path 
-      d="M20 20 L340 20 M20 70 L340 70 M20 120 L340 120 M20 170 L340 170 M60 20 L60 200 M120 20 L120 200 M180 20 L180 200 M240 20 L240 200 M300 20 L300 200" 
-      stroke="rgba(255, 255, 255, 0.1)" 
-      strokeWidth="1" 
-    />
-    
-    {/* Marqueur de position */}
-    <Circle cx="50%" cy="40%" r="14" fill="rgba(255, 255, 255, 0.25)" />
-    <Circle cx="50%" cy="40%" r="7" fill="#FFFFFF" />
-  </Svg>
-  
-  <View style={styles.mapOverlayLarge} />
-  <View style={styles.glassEffectLarge} />
-  
-  <View style={styles.buttonContentLarge}>
-    <View style={styles.iconCircleLarge}>
-      <Text style={styles.buttonIconLarge}>🌧️</Text>
-    </View>
-    <Text style={styles.buttonMainTextLarge}>Carte de pluie</Text>
-    <Text style={styles.buttonHintLarge}>Voir le radar →</Text>
-  </View>
-</TouchableOpacity>
-
+            {hasActiveAlerts() && (
+              <TouchableOpacity style={styles.heroAlertBadge} onPress={showAlertsDetails}>
+                <Text style={styles.heroAlertText}>⚠️ Alerte météo active</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
-          <Text style={styles.cardsSectionTitle}>Détails météo</Text>
-          
-       
+          {/* ══ LEVER / COUCHER DU SOLEIL ══ */}
+          {forecastDays.length > 0 && (
+            <View style={styles.sunriseSunsetBar}>
+              <View style={styles.sunriseSunsetItem}>
+                <Text style={styles.sunriseSunsetEmoji}>🌅</Text>
+                <View>
+                  <Text style={styles.sunriseSunsetTime}>{fmtSunTime(forecastDays[0]?.sunrise)}</Text>
+                  <Text style={styles.sunriseSunsetLabel}>Lever</Text>
+                </View>
+              </View>
+              <View style={styles.sunriseSunsetDivider} />
+              <View style={styles.sunriseSunsetCenter}>
+                <Text style={styles.sunriseSunsetDaylight}>
+                  {(() => {
+                    const rise = forecastDays[0]?.sunrise;
+                    const set  = forecastDays[0]?.sunset;
+                    if (!rise || !set) return '-- h ensoleillement';
+                    const riseMin = parseInt(rise.slice(11,13))*60 + parseInt(rise.slice(14,16));
+                    const setMin  = parseInt(set.slice(11,13))*60  + parseInt(set.slice(14,16));
+                    const total   = setMin - riseMin;
+                    return `${Math.floor(total/60)}h${String(total%60).padStart(2,'0')} ensoleillement`;
+                  })()}
+                </Text>
+                <Text style={styles.sunriseSunsetArc}>☀️</Text>
+              </View>
+              <View style={styles.sunriseSunsetDivider} />
+              <View style={styles.sunriseSunsetItem}>
+                <Text style={styles.sunriseSunsetEmoji}>🌇</Text>
+                <View>
+                  <Text style={styles.sunriseSunsetTime}>{fmtSunTime(forecastDays[0]?.sunset)}</Text>
+                  <Text style={styles.sunriseSunsetLabel}>Coucher</Text>
+                </View>
+              </View>
+            </View>
+          )}
 
-<View style={styles.cardsContainer}>
-  <View style={styles.sectionHeader}>
-    <Text style={styles.sectionTitle}>Détails météo</Text>
-    <View style={styles.scrollIndicators}>
-      <View style={[styles.scrollDot, activeSection === 0 && styles.scrollDotActive]} />
-      <View style={[styles.scrollDot, activeSection === 1 && styles.scrollDotActive]} />
-    </View>
-  </View>
-  
-  {/* Première section */}
-  <ScrollView 
+          {/* ══ GRILLE RAPIDE 2×2 ══ */}
+          {weatherData && (
+            <View style={styles.quickGrid}>
+              <View style={styles.quickGridRow}>
+                <TouchableOpacity style={styles.quickCard} onPress={() => handleCardPress(1, '💨 Vent')} activeOpacity={0.7}>
+                  <Text style={styles.quickCardEmoji}>💨</Text>
+                  <Text style={styles.quickCardValue}>{convertWindSpeed(weatherData.wind_speed || 0, windUnit).toFixed(1)}</Text>
+                  <Text style={styles.quickCardUnit}>{windUnit}</Text>
+                  <Text style={styles.quickCardLabel}>Vent {getCardinalDirection(weatherData.wind_direction || 0)}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.quickCard} onPress={() => handleCardPress(4, '☀️ UV')} activeOpacity={0.7}>
+                  <Text style={styles.quickCardEmoji}>☀️</Text>
+                  <Text style={styles.quickCardValue}>{(weatherData.uv_index || 0).toFixed(0)}</Text>
+                  <Text style={styles.quickCardUnit}>UV</Text>
+                  <Text style={styles.quickCardLabel}>{getUVDescription(weatherData.uv_index || 0)}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.quickGridRow}>
+                <TouchableOpacity style={styles.quickCard} onPress={() => handleCardPress(3, '📊 Pression')} activeOpacity={0.7}>
+                  <Text style={styles.quickCardEmoji}>📊</Text>
+                  <Text style={styles.quickCardValue}>{convertPressure(weatherData.pressure || 0, pressureUnit).toFixed(0)}</Text>
+                  <Text style={styles.quickCardUnit}>{pressureUnit}</Text>
+                  <Text style={styles.quickCardLabel}>Pression</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.quickCard} onPress={() => handleCardPress(6, '💧 Rosée')} activeOpacity={0.7}>
+                  <Text style={styles.quickCardEmoji}>🌡️</Text>
+                  <Text style={styles.quickCardValue}>{convertTemperature(weatherData.dew_point || 0, useCelsius).toFixed(0)}°</Text>
+                  <Text style={styles.quickCardUnit}>{useCelsius ? 'C' : 'F'}</Text>
+                  <Text style={styles.quickCardLabel}>Point rosée</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* ══ BOUTON CARTE PLUIE ══ */}
+          <TouchableOpacity
+            style={styles.rainMapButtonCompact}
+            onPress={() => router.push('/rainMap')}
+            activeOpacity={0.7}
+          >
+            <Svg style={StyleSheet.absoluteFill}>
+              <Defs>
+                <LinearGradient id="mapGradientCompact" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <Stop offset="0%" stopColor="#2196F3" stopOpacity="0.3" />
+                  <Stop offset="100%" stopColor="#0D47A1" stopOpacity="0.3" />
+                </LinearGradient>
+              </Defs>
+              <Rect x="0" y="0" width="100%" height="100%" fill="url(#mapGradientCompact)" />
+            </Svg>
+            <Text style={styles.rainMapCompactIcon}>🌧️</Text>
+            <View style={styles.rainMapCompactText}>
+              <Text style={styles.rainMapCompactTitle}>Carte de pluie</Text>
+              <Text style={styles.rainMapCompactSub}>Radar en temps réel</Text>
+            </View>
+            <Text style={styles.rainMapCompactArrow}>→</Text>
+          </TouchableOpacity>
+
+          {/* ══ DONNÉES DÉTAILLÉES ══ */}
+          <View style={styles.detailCardsSection}>
+            <View style={styles.detailCardsHeader}>
+              <Text style={styles.detailCardsTitle}>Données détaillées</Text>
+              <View style={styles.scrollIndicators}>
+                <View style={[styles.scrollDot, activeSection === 0 && styles.scrollDotActive]} />
+                <View style={[styles.scrollDot, activeSection === 1 && styles.scrollDotActive]} />
+              </View>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.horizontalScrollView}
+              contentContainerStyle={styles.horizontalScrollContent}
+              onScroll={(event) => {
+                setActiveSection(event.nativeEvent.contentOffset.x < 500 ? 0 : 1);
+              }}
+              scrollEventThrottle={16}
+            >
+              {weatherCards[0].map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.weatherCard}
+                  onPress={() => handleCardPress(item.id, item.title)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  {item.component ? item.component : <Text style={styles.cardValue}>{item.value}</Text>}
+                  <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
+                </TouchableOpacity>
+              ))}
+              {weatherCards[1].map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.weatherCard}
+                  onPress={() => handleCardPress(item.id, item.title)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  <Text style={styles.cardValue}>{item.value}</Text>
+                  <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+          <View style={styles.forecastSection}>
+  <Text style={styles.forecastTitle}>☁️ Prévisions sur 10 jours</Text>
+
+  <ScrollView
     horizontal
     showsHorizontalScrollIndicator={false}
-    style={styles.horizontalScrollView}
-    contentContainerStyle={styles.horizontalScrollContent}
-    onScroll={(event) => {
-      const scrollX = event.nativeEvent.contentOffset.x;
-      // Logique pour déterminer quelle section est visible
-      if (scrollX < 500) {
-        setActiveSection(0);
-      } else {
-        setActiveSection(1);
-      }
-    }}
-    scrollEventThrottle={16}
+    style={styles.forecastScrollView}
+    contentContainerStyle={styles.forecastScrollContent}
   >
-    {weatherCards[0].map((item) => (
-      <TouchableOpacity 
-        key={item.id} 
-        style={styles.weatherCard}
-        onPress={() => handleCardPress(item.id, item.title)}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.cardTitle}>{item.title}</Text>
-        {item.component ? item.component : <Text style={styles.cardValue}>{item.value}</Text>}
-        <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
-      </TouchableOpacity>
-    ))}
-    
-    {weatherCards[1].map((item) => (
-      <TouchableOpacity 
-        key={item.id} 
-        style={styles.weatherCard}
-        onPress={() => handleCardPress(item.id, item.title)}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.cardTitle}>{item.title}</Text>
-        <Text style={styles.cardValue}>{item.value}</Text>
-        <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
-      </TouchableOpacity>
-    ))}
-  </ScrollView>
-</View>
-          <View style={styles.forecastSection}>
-  <Text style={styles.forecastTitle}>Prévisions sur 10 jours</Text>
-  
-  {/* Afficher les jours de prévisions */}
-  {renderForecastDays()}
+    {(forecastDays.length > 0 ? forecastDays : Array.from({ length: 5 }, (_, i) => ({
+      date: null, weathercode: null, tempMax: null, tempMin: null,
+      precipitation: 0, rainProba: null,
+    }))).map((day, index) => {
+      const dt       = day.date ? new Date(day.date) : null;
+      const DAY_FR   = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+      const dayLabel = !dt ? `J+${index}`
+        : index === 0 ? 'Auj.'
+        : index === 1 ? 'Dem.'
+        : `${DAY_FR[dt.getDay()]}.${dt.getDate()}`;
+      const wcode    = day.weathercode;
+      const emoji    = wcode == null ? '…'
+        : wcode === 0 ? '☀️'
+        : wcode <= 2  ? '⛅'
+        : wcode <= 3  ? '☁️'
+        : wcode <= 48 ? '🌫️'
+        : wcode <= 55 ? '🌦️'
+        : wcode <= 67 ? '🌧️'
+        : wcode <= 77 ? '🌨️'
+        : wcode <= 82 ? '🌧️'
+        : wcode <= 86 ? '❄️'
+        : '⛈️';
+      const hasRain  = (day.precipitation || 0) >= 0.5;
+      const rainProba = day.rainProba != null ? `${day.rainProba}%` : null;
 
-  <TouchableOpacity 
-    style={styles.seeMoreButton} 
-    onPress={() => {
-      // Navigation vers une page détaillée des prévisions
-      router.push({
-        pathname: '/forecastDetail',
-        params: {
-          lat: currentLocation.lat,
-          lon: currentLocation.lon,
-          city: stationData ? stationData.description : "Localisation actuelle"
-        }
-      });
-    }}
+      return (
+        <View key={index} style={[styles.forecastDayCard, hasRain && styles.forecastDayCardRain]}>
+          <Text style={styles.forecastDay}>{dayLabel}</Text>
+          <Text style={styles.forecastCondition}>{emoji}</Text>
+          <Text style={styles.forecastTemp}>
+            {day.tempMax != null ? `${convertTemperature(day.tempMax, useCelsius).toFixed(0)}°` : '--°'}
+          </Text>
+          <Text style={styles.forecastTempMin}>
+            {day.tempMin != null ? `${convertTemperature(day.tempMin, useCelsius).toFixed(0)}°` : '--°'}
+          </Text>
+          {hasRain ? (
+            <View style={styles.rainInfo}>
+              <Text style={styles.rainIcon}>💧</Text>
+              <Text style={styles.rainPercent}>{(day.precipitation || 0).toFixed(1)}</Text>
+            </View>
+          ) : (
+            <View style={styles.rainInfo}>
+              <Text style={styles.rainIcon}>☀️</Text>
+              <Text style={[styles.rainPercent, { color: '#ffd600' }]}>Sec</Text>
+            </View>
+          )}
+          {rainProba && (
+            <Text style={styles.forecastProba}>{rainProba}</Text>
+          )}
+        </View>
+      );
+    })}
+  </ScrollView>
+
+  <TouchableOpacity
+    style={styles.seeMoreButton}
+    onPress={() => router.push({
+      pathname: '/forecastDetail',
+      params: {
+        city: stationData ? (stationData.address || stationData.description || 'Localisation actuelle') : 'Localisation actuelle',
+        lat: currentLocation.lat,
+        lon: currentLocation.lon,
+      }
+    })}
   >
-    <Text style={styles.seeMoreButtonText}>Voir Plus...</Text>
+    <Text style={styles.seeMoreButtonText}>Voir le tableau complet →</Text>
   </TouchableOpacity>
 </View>
         </View>
@@ -1345,14 +1577,25 @@ const styles = StyleSheet.create({
 },
 
   forecastDayCard: {
-  backgroundColor: "rgba(255, 255, 255, 0.05)",
-  borderRadius: 12,
-  padding: 12,
-  marginRight: 12,
-  width: 85,
+  backgroundColor: "rgba(255, 255, 255, 0.07)",
+  borderRadius: 14,
+  paddingVertical: 12,
+  paddingHorizontal: 10,
+  marginRight: 10,
+  width: 80,
   alignItems: "center",
   borderWidth: 1,
-  borderColor: "rgba(255, 255, 255, 0.1)",
+  borderColor: "rgba(255, 255, 255, 0.12)",
+},
+  forecastDayCardRain: {
+  backgroundColor: "rgba(33, 150, 243, 0.18)",
+  borderColor: "rgba(33, 150, 243, 0.4)",
+},
+  forecastProba: {
+  color: "rgba(33, 150, 243, 0.9)",
+  fontSize: 10,
+  fontWeight: "700",
+  marginTop: 2,
 },
 
 forecastDay: {
@@ -1393,11 +1636,6 @@ seeMoreButton: {
   //   paddingHorizontal: 20,
   //   //paddingBottom: 15, // Espace en bas du header
   // },
-
-  rainIcon: {
-  fontSize: 12,
-  marginRight: 4,
-},
 
   searchInput: {
     flex: 1,
@@ -1489,8 +1727,9 @@ activeAlertText: {
   paddingHorizontal: 15,
 },
   positionSubtext: {
-    color: "rgba(255, 255, 255, 0.6)",
-    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.85)",
+    fontSize: 14,
+    fontWeight: '600',
     marginTop: 2,
     
   },
@@ -1502,8 +1741,9 @@ activeAlertText: {
     paddingHorizontal: 5,
   },
   updateText: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 12,
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: '600',
     flex: 1,
   },
 
@@ -1618,18 +1858,6 @@ scrollDotActive: {
     flexDirection: "row",
     marginBottom: 12,
   },
-  weatherCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderRadius: 15,
-    padding: 12,
-    marginRight: 12,
-    width: 150,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 140,
-  },
   cardTitle: {
     color: "rgba(255, 255, 255, 0.9)",
     fontSize: 12,
@@ -1730,6 +1958,56 @@ scrollDotActive: {
     fontWeight: '600',
     textAlign: "center",
     
+  },
+
+  sunriseSunsetBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    marginHorizontal: 0,
+    marginBottom: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  sunriseSunsetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  sunriseSunsetEmoji: { fontSize: 26 },
+  sunriseSunsetTime: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  sunriseSunsetLabel: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  sunriseSunsetDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginHorizontal: 10,
+  },
+  sunriseSunsetCenter: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  sunriseSunsetDaylight: {
+    color: '#ffd600',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  sunriseSunsetArc: {
+    fontSize: 20,
+    marginTop: 2,
   },
 
   forecastSection: {
@@ -1867,23 +2145,11 @@ scrollDotActive: {
     flex: 1,
   },
   
-  positionText: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "600",
-    fontFamily: 'monospace',
-  },
-  
-  positionSubtext: {
-    color: "rgba(255, 255, 255, 0.6)",
-    fontSize: 10,
-    marginTop: 2,
-  },
-
   positionIconContainer: {
-  position: 'relative',
-  marginRight: 8,
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
 
 positionIconInactive: {
   opacity: 0.5,
@@ -1995,12 +2261,6 @@ rainMapButtonV1: {
   elevation: 5,
   width: 280,
   alignSelf: "center",
-},
-
-rainMapButtonInner: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between",
 },
 
 rainMapIcon: {
@@ -2266,6 +2526,185 @@ buttonHintLarge: {
   letterSpacing: 0.3,
 },
 
+// ─── Hero section ────────────────────────────────────────────────────────────
+heroSection: {
+  alignItems: 'center',
+  paddingVertical: 24,
+  paddingHorizontal: 16,
+  marginBottom: 8,
+},
+heroCity: {
+  fontSize: 20,
+  fontWeight: '700',
+  color: '#fff',
+  textAlign: 'center',
+  textShadowColor: 'rgba(0,0,0,0.2)',
+  textShadowOffset: { width: 1, height: 1 },
+  textShadowRadius: 3,
+},
+heroDistance: {
+  color: 'rgba(255,255,255,0.6)',
+  fontSize: 12,
+  marginTop: 4,
+},
+heroConditionEmoji: {
+  fontSize: 60,
+  marginVertical: 10,
+},
+heroTemp: {
+  fontSize: 86,
+  fontWeight: '300',
+  color: '#fff',
+  lineHeight: 96,
+  textShadowColor: 'rgba(0,0,0,0.2)',
+  textShadowOffset: { width: 2, height: 2 },
+  textShadowRadius: 4,
+},
+heroConditionLabel: {
+  fontSize: 18,
+  fontWeight: '500',
+  color: 'rgba(255,255,255,0.85)',
+  marginTop: 6,
+  marginBottom: 16,
+  letterSpacing: 0.3,
+},
+heroStatsRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: 'rgba(255,255,255,0.12)',
+  borderRadius: 22,
+  paddingVertical: 12,
+  paddingHorizontal: 8,
+  borderWidth: 1,
+  borderColor: 'rgba(255,255,255,0.18)',
+},
+heroStatItem: {
+  alignItems: 'center',
+  paddingHorizontal: 16,
+},
+heroStatValue: {
+  color: '#fff',
+  fontSize: 17,
+  fontWeight: '600',
+},
+heroStatLabel: {
+  color: 'rgba(255,255,255,0.55)',
+  fontSize: 10,
+  marginTop: 2,
+},
+heroStatDivider: {
+  width: 1,
+  height: 28,
+  backgroundColor: 'rgba(255,255,255,0.2)',
+},
+heroAlertBadge: {
+  backgroundColor: 'rgba(220,53,69,0.18)',
+  borderRadius: 12,
+  paddingHorizontal: 16,
+  paddingVertical: 8,
+  borderWidth: 1,
+  borderColor: 'rgba(220,53,69,0.35)',
+  marginTop: 12,
+},
+heroAlertText: {
+  color: '#ff8080',
+  fontSize: 12,
+  fontWeight: '600',
+},
+
+// ─── Quick 2×2 grid ──────────────────────────────────────────────────────────
+quickGrid: {
+  marginBottom: 16,
+},
+quickGridRow: {
+  flexDirection: 'row',
+  marginBottom: 10,
+},
+quickCard: {
+  flex: 1,
+  backgroundColor: 'rgba(255,255,255,0.1)',
+  borderRadius: 18,
+  padding: 16,
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: 'rgba(255,255,255,0.16)',
+  marginHorizontal: 5,
+},
+quickCardEmoji: {
+  fontSize: 26,
+  marginBottom: 6,
+},
+quickCardValue: {
+  color: '#fff',
+  fontSize: 20,
+  fontWeight: '700',
+},
+quickCardUnit: {
+  color: 'rgba(255,255,255,0.55)',
+  fontSize: 10,
+  marginTop: 2,
+},
+quickCardLabel: {
+  color: 'rgba(255,255,255,0.75)',
+  fontSize: 11,
+  marginTop: 5,
+  fontWeight: '500',
+},
+
+// ─── Compact rain map button ─────────────────────────────────────────────────
+rainMapButtonCompact: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: 'rgba(33,150,243,0.1)',
+  borderRadius: 18,
+  padding: 18,
+  marginBottom: 20,
+  borderWidth: 1,
+  borderColor: 'rgba(33,150,243,0.3)',
+  overflow: 'hidden',
+  position: 'relative',
+},
+rainMapCompactIcon: {
+  fontSize: 32,
+  marginRight: 14,
+},
+rainMapCompactText: {
+  flex: 1,
+},
+rainMapCompactTitle: {
+  color: '#fff',
+  fontSize: 16,
+  fontWeight: '600',
+},
+rainMapCompactSub: {
+  color: 'rgba(255,255,255,0.6)',
+  fontSize: 12,
+  marginTop: 3,
+},
+rainMapCompactArrow: {
+  color: 'rgba(255,255,255,0.7)',
+  fontSize: 22,
+  fontWeight: '600',
+},
+
+// ─── Detail cards section ─────────────────────────────────────────────────────
+detailCardsSection: {
+  marginBottom: 16,
+},
+detailCardsHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  paddingHorizontal: 4,
+  marginBottom: 12,
+},
+detailCardsTitle: {
+  color: '#fff',
+  fontSize: 16,
+  fontWeight: '700',
+  letterSpacing: 0.2,
+},
+
 suggestionsContainer: {
   position: 'absolute',
   top: 55,
@@ -2296,3 +2735,4 @@ suggestionText: {
   color: '#333',
 },
 });
+//1041 {stationData?.address ? ` • ${stationData.address}` : ''}

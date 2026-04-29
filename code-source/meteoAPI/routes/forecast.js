@@ -18,14 +18,19 @@ router.get('/24h/:uuid', async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const pageSize = parseInt(req.query.pageSize) || 10;
 
+    const mongoose = require('mongoose');
+    const stationId = mongoose.Types.ObjectId.isValid(uuid)
+      ? new mongoose.Types.ObjectId(uuid)
+      : null;
+
     const details24h = await Data.aggregate([
-      { $match: { deviceUUID: uuid, timestamp: { $gte: since } } },
+      { $match: { station: stationId, measured_at: { $gte: since } } },
       {
         $group: {
           _id: {
-            hour: { $hour: "$timestamp" },
-            day: { $dayOfMonth: "$timestamp" },
-            month: { $month: "$timestamp" }
+            hour: { $hour: "$measured_at" },
+            day: { $dayOfMonth: "$measured_at" },
+            month: { $month: "$measured_at" }
           },
           avgTemp: { $avg: "$temperature" },
           minTemp: { $min: "$temperature" },
@@ -66,14 +71,19 @@ router.get('/7d/:uuid', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
 
+    const mongoose = require('mongoose');
+    const stationId = mongoose.Types.ObjectId.isValid(uuid)
+      ? new mongoose.Types.ObjectId(uuid)
+      : null;
+
     const forecast7dRaw = await Data.aggregate([
-      { $match: { deviceUUID: uuid, timestamp: { $gte: sevenDaysAgo } } },
+      { $match: { station: stationId, measured_at: { $gte: sevenDaysAgo } } },
       {
         $group: {
           _id: {
-            year: { $year: "$timestamp" },
-            month: { $month: "$timestamp" },
-            day: { $dayOfMonth: "$timestamp" }
+            year: { $year: "$measured_at" },
+            month: { $month: "$measured_at" },
+            day: { $dayOfMonth: "$measured_at" }
           },
           minTemp: { $min: "$temperature" },
           maxTemp: { $max: "$temperature" },
@@ -144,11 +154,16 @@ router.get('/:uuid', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
 
+    const mongoose = require('mongoose');
+    const stationId = mongoose.Types.ObjectId.isValid(uuid)
+      ? new mongoose.Types.ObjectId(uuid)
+      : null;
+
     const forecast24hRaw = await Data.aggregate([
-      { $match: { deviceUUID: uuid, timestamp: { $gte: since24h } } },
+      { $match: { station: stationId, measured_at: { $gte: since24h } } },
       {
         $group: {
-          _id: { hour: { $hour: "$timestamp" } },
+          _id: { hour: { $hour: "$measured_at" } },
           avgTemp: { $avg: "$temperature" },
           minTemp: { $min: "$temperature" },
           maxTemp: { $max: "$temperature" },
@@ -164,13 +179,13 @@ router.get('/:uuid', async (req, res) => {
     // Génération 7 jours
     const since7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const forecast7dRaw = await Data.aggregate([
-      { $match: { deviceUUID: uuid, timestamp: { $gte: since7d } } },
+      { $match: { station: stationId, measured_at: { $gte: since7d } } },
       {
         $group: {
           _id: {
-            year: { $year: "$timestamp" },
-            month: { $month: "$timestamp" },
-            day: { $dayOfMonth: "$timestamp" }
+            year: { $year: "$measured_at" },
+            month: { $month: "$measured_at" },
+            day: { $dayOfMonth: "$measured_at" }
           },
           minTemp: { $min: "$temperature" },
           maxTemp: { $max: "$temperature" },

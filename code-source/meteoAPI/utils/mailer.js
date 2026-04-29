@@ -1,22 +1,34 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-   host: "smtp.gmail.com",   // Ou smtp.mail.yahoo.com, smtp.office365.com, etc.
+  host: 'smtp.gmail.com',
   port: 587,
-  secure: false, // true pour 465, false pour 587
+  secure: false,
   auth: {
-    user: "sanloveedena@gmail.com",
-    pass: "jdje gofg giup arik"
-  }
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
 });
 
-module.exports = async function sendConfirmationEmail(to, token) {
-  const url = `http://localhost:3000/api/auth/confirm/${token}`;
-
+module.exports = async function sendConfirmationEmail(to, code) {
   await transporter.sendMail({
-    from: `"Mon App Météo" <${process.env.EMAIL_USER}>`,
+    from: `"URGmetEO" <${process.env.EMAIL_USER}>`,
     to,
-    subject: 'Confirme ton compte',
-    html: `<p>Clique ici pour confirmer ton compte :</p><a href="${url}">${url}</a>`
+    subject: 'Votre code de confirmation URGmetEO',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #27B6F4;">URGmetEO</h2>
+        <p>Bonjour,</p>
+        <p>Voici votre code de confirmation pour activer votre compte :</p>
+        <div style="background: #f0f8ff; border: 2px solid #27B6F4; border-radius: 12px;
+                    padding: 20px; text-align: center; margin: 20px 0;">
+          <span style="font-size: 36px; font-weight: bold; color: #27B6F4; letter-spacing: 8px;">
+            ${code}
+          </span>
+        </div>
+        <p>Entrez ce code dans l'application URGmetEO pour créer votre mot de passe.</p>
+        <p style="color:#888; font-size:12px;">Si vous n'avez pas créé de compte, ignorez cet email.</p>
+      </div>
+    `,
   });
 };

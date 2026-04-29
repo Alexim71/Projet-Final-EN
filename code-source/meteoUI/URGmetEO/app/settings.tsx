@@ -11,7 +11,9 @@ import {
   Alert,
   Linking,
   Modal,
+  ActivityIndicator,
 } from "react-native";
+import { apiClient } from "./api";
 import { Stack } from "expo-router";
 import { useSettings } from "../context/SettingsContext";
 import Card from "./components/Settings/Card";
@@ -27,6 +29,13 @@ export default function SettingsScreen() {
   const [locationPopup, setLocationPopup] = useState<"current" | "manual" | null>(null);
   const [currentLocation, setCurrentLocation] = useState<Location.LocationObject | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const FALLBACK_STATIONS = [
+    { station: { code: "DEMO-PAP-01", address: "Centre-Ville, Port-au-Prince", description: "Données normales" }, data: null },
+    { station: { code: "DEMO-PAP-02", address: "Pétion-Ville, Port-au-Prince", description: "Données d'avertissement" }, data: null },
+    { station: { code: "DEMO-PAP-03", address: "Delmas, Port-au-Prince", description: "Données critiques" }, data: null },
+  ];
+  const [demoStations, setDemoStations] = useState<any[]>(FALLBACK_STATIONS);
+  const [loadingDemoStations, setLoadingDemoStations] = useState(false);
   const router = useRouter();
 
   const {
@@ -36,8 +45,24 @@ export default function SettingsScreen() {
     darkMode,
     language,
     allowLocation,
+    demoMode,
+    demoStationCode,
     updateSettings,
   } = useSettings();
+
+  useEffect(() => {
+    if (!demoMode) return;
+    setLoadingDemoStations(true);
+    apiClient.get('/api/geo/demo-stations')
+      .then(res => {
+        if (res.data && res.data.length > 0) setDemoStations(res.data);
+        // sinon on garde le fallback déjà en place
+      })
+      .catch(() => {
+        // fallback déjà initialisé, rien à faire
+      })
+      .finally(() => setLoadingDemoStations(false));
+  }, [demoMode]);
 
   const { t, i18n } = useTranslation();
 
@@ -124,25 +149,25 @@ Merci.
   return (
     <>
       <Stack.Screen
-      options={{
+        options={{
           title: t("settings"),
+          headerStyle: { backgroundColor: darkMode ? "#1c1c1e" : "#ffffff" },
+          headerTintColor: darkMode ? "#ffffff" : "#000000",
           headerRight: () => (
-            <View style={{ flexDirection: "row", gap: 15 }}>
-              <TouchableOpacity onPress={() => router.push("/notifications")}>
-                <Ionicons name="notifications-outline" size={22} />
+            <View style={{ flexDirection: "row", gap: 15, marginRight: 4 }}>
+              <TouchableOpacity onPress={() => router.push("/notifications")} hitSlop={8}>
+                <Ionicons name="notifications-outline" size={22} color={darkMode ? "#ffffff" : "#000000"} />
               </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => router.push("/rate")}>
-                <Ionicons name="star-outline" size={22} />
+              <TouchableOpacity onPress={() => router.push("/rate")} hitSlop={8}>
+                <Ionicons name="star-outline" size={22} color={darkMode ? "#ffffff" : "#000000"} />
               </TouchableOpacity>
-
-              <TouchableOpacity onPress={() => router.push("/about")}>
-                <Ionicons name="information-circle-outline" size={22} />
+              <TouchableOpacity onPress={() => router.push("/about")} hitSlop={8}>
+                <Ionicons name="information-circle-outline" size={22} color={darkMode ? "#ffffff" : "#000000"} />
               </TouchableOpacity>
             </View>
           ),
         }}
-         />      
+      />      
       <ScrollView
         style={[styles.container, { backgroundColor: theme.background }]}
         contentContainerStyle={styles.content}
@@ -186,6 +211,87 @@ Merci.
             <Text style={[styles.label, { color: theme.text, fontWeight: "bold" }]}>{t("darkMode")}</Text>
             <Switch value={darkMode} onValueChange={(value: boolean) => updateSettings({ darkMode: value })} />
           </View>
+        </Card>
+
+        {/* 🧪 Mode démo */}
+        <Card darkMode={darkMode}>
+          <View style={styles.row}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={[styles.label, { color: theme.text, fontWeight: "bold" }]}>Mode démo</Text>
+              <Text style={{ color: theme.text, opacity: 0.55, fontSize: 12, marginTop: 2 }}>
+                {demoMode ? "Station de test active" : "Données temps réel (GPS)"}
+              </Text>
+            </View>
+            <Switch
+              value={demoMode ?? false}
+              onValueChange={(value: boolean) => {
+                console.log("[DemoMode] switch →", value);
+                updateSettings({
+                  demoMode: value,
+                  demoStationCode: value ? (demoStationCode ?? "DEMO-PAP-01") : null,
+                });
+              }}
+            />
+          </View>
+
+          {demoMode && (
+            <View style={{ marginTop: 14 }}>
+              <Text style={[styles.demoSectionLabel, { color: theme.text }]}>
+                Choisir une station de test :
+              </Text>
+
+              {loadingDemoStations ? (
+                <ActivityIndicator style={{ marginTop: 12 }} color={theme.accent} />
+              ) : (
+                demoStations.map((item: any) => {
+                  const temp = item.data?.temperature;
+                  const wind = item.data ? (item.data.wind_speed * 3.6).toFixed(0) : "—";
+                  const rain = item.data?.rainfall ?? 0;
+                  const isSelected = demoStationCode === item.station.code;
+
+                  const dot =
+                    temp == null ? "⚪" :
+                    temp >= 38  ? "🔴" :
+                    temp >= 30  ? "🟠" : "🟢";
+
+                  return (
+                    <TouchableOpacity
+                      key={item.station.code}
+                      style={[
+                        styles.stationItem,
+                        { borderColor: isSelected ? theme.accent : (darkMode ? "#444" : "#e0e0e0") },
+                        isSelected && { backgroundColor: darkMode ? "#1a3a5c" : "#e8f4fd" },
+                      ]}
+                      onPress={() => updateSettings({ demoStationCode: item.station.code })}
+                      activeOpacity={0.7}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                        <Text style={{ fontSize: 20, marginRight: 10 }}>{dot}</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.stationName, { color: theme.text }]}>
+                            {item.station.address ?? item.station.code}
+                          </Text>
+                          <Text style={{ color: theme.text, opacity: 0.55, fontSize: 12 }}>
+                            {item.station.description}
+                          </Text>
+                          {item.data && (
+                            <Text style={{ color: theme.accent, fontSize: 13, marginTop: 4, fontWeight: "600" }}>
+                              {temp != null ? `${temp.toFixed(1)}°C` : "—"}
+                              {"  •  "}Vent {wind} km/h
+                              {"  •  "}Pluie {rain} mm
+                            </Text>
+                          )}
+                        </View>
+                        {isSelected && (
+                          <Text style={{ color: theme.accent, fontSize: 20, fontWeight: "bold" }}>✓</Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </View>
+          )}
         </Card>
 
         {/* 🌍 Langue */}
@@ -393,15 +499,29 @@ arrow: {
 },
 optionText: { fontSize: 16 },
 
- optionRow: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  alignItems: "center",
-  paddingVertical: 12,
-  borderBottomWidth: 0.5,
-  borderBottomColor: "#ccc",
-},
- 
-
+  optionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#ccc",
+  },
+  demoSectionLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    opacity: 0.7,
+    marginBottom: 8,
+  },
+  stationItem: {
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+  },
+  stationName: {
+    fontSize: 15,
+    fontWeight: "700",
+  },
 });
 

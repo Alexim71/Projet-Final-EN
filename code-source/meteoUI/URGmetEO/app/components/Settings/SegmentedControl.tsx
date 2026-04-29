@@ -1,53 +1,39 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 
-type Props = {
+type SegmentedControlProps = {
   options: string[];
   selected: string;
   onSelect: (value: string) => void;
   darkMode?: boolean;
 };
 
-export default function SegmentedControl({ options, selected, onSelect, darkMode = false }: Props) {
+export default function SegmentedControl({
+  options,
+  selected,
+  onSelect,
+  darkMode = false,
+}: SegmentedControlProps) {
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        backgroundColor: darkMode ? "#333" : "#e5e5ea",
-        borderRadius: 20,
-        padding: 4,
-        marginTop: 10,
-      }}
-    >
+    <View style={[styles.container, { backgroundColor: darkMode ? "#2c2c2e" : "#e9e9eb" }]}>
       {options.map((option) => {
-        const isSelected = option === selected;
+        const isActive = option === selected;
         return (
           <TouchableOpacity
             key={option}
+            style={[
+              styles.segment,
+              isActive && { backgroundColor: darkMode ? "#444" : "#ffffff" },
+            ]}
             onPress={() => onSelect(option)}
-            style={{
-              flex: 1,
-              backgroundColor: isSelected
-                ? darkMode
-                  ? "#fff"
-                  : "#000"
-                : "transparent",
-              paddingVertical: 8,
-              borderRadius: 16,
-            }}
+            activeOpacity={0.8}
           >
             <Text
-              style={{
-                textAlign: "center",
-                color: isSelected
-                  ? darkMode
-                    ? "#000"
-                    : "#fff"
-                  : darkMode
-                  ? "#fff"
-                  : "#000",
-                fontWeight: "600",
-              }}
+              style={[
+                styles.label,
+                { color: darkMode ? "#fff" : "#000" },
+                isActive && styles.labelActive,
+              ]}
             >
               {option}
             </Text>
@@ -57,3 +43,25 @@ export default function SegmentedControl({ options, selected, onSelect, darkMode
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: "row",
+    borderRadius: 8,
+    padding: 2,
+    marginTop: 10,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 7,
+    alignItems: "center",
+    borderRadius: 7,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  labelActive: {
+    fontWeight: "700",
+  },
+});

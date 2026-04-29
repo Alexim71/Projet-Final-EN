@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -5,8 +6,9 @@ const authRoutes = require('./routes/auth');
 const swaggerDocs = require("./swagger");
 
 
-// Charger le cron
+// Charger les crons
 require("./cron/cleanup");
+require("./cron/syncWeather");
 const geoRoutes = require('./routes/geo.routes');
 const rainRoutes = require('./routes/rain.routes');
 
@@ -63,8 +65,24 @@ app.use('/api/weather/history', historyRoutes);
 
 
 //  Lancer le serveur
+const os = require("os");
+
+const getLocalIP = () => {
+  const interfaces = os.networkInterfaces();
+  for (let iface of Object.values(interfaces)) {
+    for (let i of iface) {
+      if (i.family === "IPv4" && !i.internal) {
+        return i.address;
+      }
+    }
+  }
+  return "localhost";
+};
+
 const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`);
-    swaggerDocs(app);
+
+app.listen(PORT, "0.0.0.0", () => {
+  const ip = getLocalIP();
+  console.log(`🚀 Serveur démarré sur http://${ip}:${PORT}`);
+  swaggerDocs(app);
 });

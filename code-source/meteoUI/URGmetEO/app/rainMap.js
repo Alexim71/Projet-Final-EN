@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Modal,
   StyleSheet,
@@ -15,6 +14,33 @@ import MapView, { Heatmap, Marker, Polygon, PROVIDER_GOOGLE } from 'react-native
 import { apiClient } from './api.js';
 
 const { width, height } = Dimensions.get('window');
+
+// Constante au niveau du module — accessible partout dans le fichier
+const rainIntensities = {
+  'very-light': { color: 'rgba(33, 150, 243, 0.3)', label: 'Très légère (< 0.5 mm)', emoji: '🌦️' },
+  'light':      { color: 'rgba(33, 150, 243, 0.5)', label: 'Légère (0.5-2.5 mm)',     emoji: '🌧️' },
+  'moderate':   { color: 'rgba(255, 152, 0, 0.6)',  label: 'Modérée (2.5-7.5 mm)',    emoji: '🌧️🌧️' },
+  'heavy':      { color: 'rgba(244, 67, 54, 0.7)',  label: 'Forte (7.5-15 mm)',        emoji: '⛈️' },
+  'violent':    { color: 'rgba(156, 39, 176, 0.8)', label: 'Violente (> 15 mm)',       emoji: '🌩️' },
+};
+
+// Composant statique au niveau du module — ne se recrée pas à chaque rendu
+function DepartmentMarker({ dept }) {
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+  const icon = dept.hasRain ? (rainIntensities[dept.intensity]?.emoji || '🌧️') : '☀️';
+
+  return (
+    <Marker
+      coordinate={{ latitude: dept.lat, longitude: dept.lon }}
+      tracksViewChanges={tracksViewChanges}
+      anchor={{ x: 0.5, y: 0.5 }}
+    >
+      <View onLayout={() => setTracksViewChanges(false)}>
+        <Text style={styles.deptIconOnly}>{icon}</Text>
+      </View>
+    </Marker>
+  );
+}
 
 export default function RainMap() {
   const params = useLocalSearchParams();
@@ -32,199 +58,81 @@ export default function RainMap() {
   });
   
   const [rainZones, setRainZones] = useState([]);
-  const [rainHistory, setRainHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedZone, setSelectedZone] = useState(null);
-  const [showLegend, setShowLegend] = useState(true);
-  const [timeRange, setTimeRange] = useState('current'); // 'current', '1h', '3h', '6h'
+  const [showLegend, setShowLegend] = useState(false);
+  const [timeRange, setTimeRange] = useState('current');
+  const [departmentWeather, setDepartmentWeather] = useState([]);
   
   const mapRef = useRef(null);
-  
-  // Intensités de pluie avec couleurs
-  const rainIntensities = {
-    'very-light': { color: 'rgba(33, 150, 243, 0.3)', label: 'Très légère (< 0.5 mm)', emoji: '🌦️' },
-    'light': { color: 'rgba(33, 150, 243, 0.5)', label: 'Légère (0.5-2.5 mm)', emoji: '🌧️' },
-    'moderate': { color: 'rgba(255, 152, 0, 0.6)', label: 'Modérée (2.5-7.5 mm)', emoji: '🌧️🌧️' },
-    'heavy': { color: 'rgba(244, 67, 54, 0.7)', label: 'Forte (7.5-15 mm)', emoji: '⛈️' },
-    'violent': { color: 'rgba(156, 39, 176, 0.8)', label: 'Violente (> 15 mm)', emoji: '🌩️' },
-  };
-  
+  const mapRegionRef = useRef(mapRegion);
+  const regionChangeTimer = useRef(null);
+  const timeRangeRef = useRef('current');
+
   // Récupérer les zones de pluie
   const fetchRainZones = async () => {
+    const region = mapRegionRef.current;
     try {
       setLoading(true);
-      
+
       const bounds = [
-        mapRegion.latitude - mapRegion.latitudeDelta,
-        mapRegion.longitude - mapRegion.longitudeDelta,
-        mapRegion.latitude + mapRegion.latitudeDelta,
-        mapRegion.longitude + mapRegion.longitudeDelta,
+        region.latitude - region.latitudeDelta,
+        region.longitude - region.longitudeDelta,
+        region.latitude + region.latitudeDelta,
+        region.longitude + region.longitudeDelta,
       ];
-      
+
       console.log('📡 Chargement zones pluie pour bounds:', bounds);
-      
+
+      const hours = timeRangeRef.current === 'current' ? 0 : parseInt(timeRangeRef.current);
       const response = await apiClient.get('/api/rain/rain-zones', {
-        params: {
-          bounds: bounds.join(','),
-          resolution: 50
-        }
+        params: { bounds: bounds.join(','), ...(hours > 0 ? { hours } : {}) }
       });
-      
-      console.log('✅ Données zones pluie reçues:', response.data);
-      
+
       if (response.data && response.data.features) {
-        // Filtrer les zones avec coordonnées valides
         const validZones = response.data.features.filter(zone => {
           const coords = zone.geometry?.coordinates;
-          return coords && 
-                 coords.length === 2 && 
-                 typeof coords[1] === 'number' && 
+          return coords &&
+                 coords.length === 2 &&
+                 typeof coords[1] === 'number' &&
                  typeof coords[0] === 'number' &&
-                 !isNaN(coords[1]) && 
+                 !isNaN(coords[1]) &&
                  !isNaN(coords[0]);
         });
-        
-        console.log(`✅ ${validZones.length} zones valides sur ${response.data.features.length}`);
+
+        console.log(`✅ ${validZones.length} zones reçues (Open-Meteo)`);
         setRainZones(validZones);
-        
-        // Si pas de données valides, récupérer autour du point central
-        if (validZones.length === 0) {
-          fetchRainByLocation();
-        }
       }
     } catch (error) {
-      console.error('❌ Erreur chargement zones pluie:', error);
-      Alert.alert('Erreur', 'Impossible de charger les données de pluie');
-      
-      // Données de démo
-      setDemoData();
+      console.error('❌ Erreur chargement zones pluie:', error.message);
     } finally {
       setLoading(false);
     }
   };
+
+  // Changement de région avec debounce
+  const handleRegionChange = (region) => {
+    setMapRegion(region);
+    mapRegionRef.current = region;
+    if (regionChangeTimer.current) clearTimeout(regionChangeTimer.current);
+    regionChangeTimer.current = setTimeout(fetchRainZones, 1500);
+  };
   
-  // Récupérer par localisation
-  const fetchRainByLocation = async () => {
+  // Résumé météo par département haïtien
+  const fetchDepartmentWeather = async () => {
     try {
-      const response = await apiClient.get('/api/rain/rain-zones', {
-        params: {
-          lat: mapRegion.latitude,
-          lon: mapRegion.longitude,
-          radius: 20000, // 20km
-          resolution: 30
-        }
+      const hours = timeRangeRef.current === 'current' ? 0 : parseInt(timeRangeRef.current);
+      const response = await apiClient.get('/api/rain/department-summary', {
+        params: hours > 0 ? { hours } : {}
       });
-      
-      if (response.data && response.data.features) {
-        // Filtrer les zones avec coordonnées valides
-        const validZones = response.data.features.filter(zone => {
-          const coords = zone.geometry?.coordinates;
-          return coords && 
-                 coords.length === 2 && 
-                 typeof coords[1] === 'number' && 
-                 typeof coords[0] === 'number' &&
-                 !isNaN(coords[1]) && 
-                 !isNaN(coords[0]);
-        });
-        
-        setRainZones(validZones);
+      if (response.data?.departments) {
+        setDepartmentWeather(response.data.departments);
       }
     } catch (error) {
-      console.error('Erreur alternative:', error);
+      console.error('❌ Erreur départements:', error.message);
     }
   };
-  
-  // Récupérer l'historique
-  const fetchRainHistory = async () => {
-    try {
-      const bounds = [
-        mapRegion.latitude - mapRegion.latitudeDelta,
-        mapRegion.longitude - mapRegion.longitudeDelta,
-        mapRegion.latitude + mapRegion.latitudeDelta,
-        mapRegion.longitude + mapRegion.longitudeDelta,
-      ];
-      
-      const response = await apiClient.get('/api/geo/rain-history', {
-        params: {
-          bounds: bounds.join(','),
-          hours: parseInt(timeRange === 'current' ? 1 : timeRange.replace('h', ''))
-        }
-      });
-      
-      if (response.data && response.data.stations) {
-        setRainHistory(response.data.stations);
-      }
-    } catch (error) {
-      console.error('Erreur historique:', error);
-    }
-  };
-  
-  // Données de démo
-  const setDemoData = () => {
-    const baseLat = !isNaN(initialLat) ? initialLat : 18.533333;
-    const baseLon = !isNaN(initialLon) ? initialLon : -72.333333;
-    
-    const demoZones = [
-      {
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [baseLon + 0.05, baseLat + 0.05] // [longitude, latitude]
-        },
-        properties: {
-          stationId: 'demo1',
-          name: 'Station Démo 1',
-          rainfall: 1.2,
-          intensity: 'light',
-          measuredAt: new Date().toISOString()
-        }
-      },
-      {
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [baseLon - 0.03, baseLat - 0.02]
-        },
-        properties: {
-          stationId: 'demo2',
-          name: 'Station Démo 2',
-          rainfall: 5.8,
-          intensity: 'moderate',
-          measuredAt: new Date().toISOString()
-        }
-      },
-      {
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [baseLon + 0.02, baseLat - 0.04]
-        },
-        properties: {
-          stationId: 'demo3',
-          name: 'Station Démo 3',
-          rainfall: 0.3,
-          intensity: 'very-light',
-          measuredAt: new Date().toISOString()
-        }
-      },
-      {
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [baseLon - 0.06, baseLat + 0.03]
-        },
-        properties: {
-          stationId: 'demo4',
-          name: 'Station Démo 4',
-          rainfall: 10.2,
-          intensity: 'heavy',
-          measuredAt: new Date().toISOString()
-        }
-      }
-    ];
-    
-    setRainZones(demoZones);
-  };
+
   
   // Zoom sur la position actuelle
   const zoomToCurrentLocation = async () => {
@@ -241,34 +149,33 @@ export default function RainMap() {
           longitudeDelta: 0.05,
         };
         
+        mapRegionRef.current = newRegion;
         setMapRegion(newRegion);
-        
+        fetchRainZones();
+
         if (mapRef.current) {
           mapRef.current.animateToRegion(newRegion, 1000);
         }
       }
     } catch (error) {
       console.error('Erreur localisation:', error);
-      Alert.alert('Erreur', 'Impossible d\'obtenir votre position');
     }
   };
   
-  // Initialisation
+  // Chargement initial + rafraîchissement toutes les 5 minutes
   useEffect(() => {
     fetchRainZones();
-    
-    // Mettre à jour toutes les 5 minutes
-    const interval = setInterval(fetchRainZones, 300000);
-    
-    return () => clearInterval(interval);
-  }, [mapRegion]);
+    fetchDepartmentWeather();
+    const interval = setInterval(() => {
+      fetchRainZones();
+      fetchDepartmentWeather();
+    }, 300000);
+    return () => {
+      clearInterval(interval);
+      if (regionChangeTimer.current) clearTimeout(regionChangeTimer.current);
+    };
+  }, []);
   
-  // Mettre à jour l'historique quand le timeRange change
-  useEffect(() => {
-    if (timeRange !== 'current') {
-      fetchRainHistory();
-    }
-  }, [timeRange]);
   
   // Composant Marker sécurisé
   const SafeMarker = ({ zone, onPress, index }) => {
@@ -371,59 +278,79 @@ export default function RainMap() {
   };
   
   // Rendu de la légende
-  const renderLegend = () => (
-    <View style={styles.legendContainer}>
-      <TouchableOpacity 
-        style={styles.legendHeader}
-        onPress={() => setShowLegend(!showLegend)}
-      >
-        <Text style={styles.legendTitle}>Légende des intensités de pluie</Text>
-        <Text style={styles.legendToggle}>{showLegend ? '▲' : '▼'}</Text>
-      </TouchableOpacity>
-      
-      {showLegend && (
-        <View style={styles.legendContent}>
-          {Object.entries(rainIntensities).map(([key, data]) => (
-            <View key={key} style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: data.color }]} />
-              <Text style={styles.legendLabel}>{data.emoji} {data.label}</Text>
+  const renderLegend = () => {
+    return (
+      <View style={styles.legendContainer}>
+        <TouchableOpacity
+          style={styles.legendHeader}
+          onPress={() => setShowLegend(!showLegend)}
+        >
+          <Text style={styles.legendTitle}>Détails par département · Intensités</Text>
+          <Text style={styles.legendToggle}>{showLegend ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+
+        {showLegend && (
+          <View style={styles.legendContent}>
+            {/* Résumé par département */}
+            {departmentWeather.length > 0 && (
+              <View style={styles.deptSummaryGrid}>
+                {departmentWeather.map((d, i) => (
+                  <View key={i} style={[styles.deptSummaryItem, { borderColor: d.hasRain ? '#1565C0' : '#F9A825' }]}>
+                    <Text style={styles.deptSummaryIcon}>
+                      {d.hasRain ? (rainIntensities[d.intensity]?.emoji || '🌧️') : '☀️'}
+                    </Text>
+                    <Text style={styles.deptSummaryName}>{d.name}</Text>
+                    <Text style={styles.deptSummaryVal}>
+                      {d.hasRain ? `${d.rainfall} mm` : 'Sec'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Échelle d'intensité */}
+            <Text style={styles.legendSectionTitle}>Échelle d'intensité</Text>
+            {Object.entries(rainIntensities).map(([key, data]) => (
+              <View key={key} style={styles.legendItem}>
+                <View style={[styles.legendColor, { backgroundColor: data.color }]} />
+                <Text style={styles.legendLabel}>{data.emoji} {data.label}</Text>
+              </View>
+            ))}
+
+            <View style={styles.legendStats}>
+              <Text style={styles.legendStatsText}>
+                Source: Open-Meteo · {new Date().toLocaleTimeString()}
+              </Text>
             </View>
-          ))}
-          
-          <View style={styles.legendStats}>
-            <Text style={styles.legendStatsText}>
-              {rainZones.length} zone(s) pluvieuse(s) détectée(s)
-            </Text>
-            <Text style={styles.legendStatsText}>
-              Dernière mise à jour: {new Date().toLocaleTimeString()}
-            </Text>
           </View>
-        </View>
-      )}
-    </View>
-  );
+        )}
+      </View>
+    );
+  };
   
   // Rendu des contrôles de temps
   const renderTimeControls = () => (
     <View style={styles.timeControls}>
-      <Text style={styles.timeLabel}>Période:</Text>
-      {['current', '1h', '3h', '6h'].map((period) => (
-        <TouchableOpacity
-          key={period}
-          style={[
-            styles.timeButton,
-            timeRange === period && styles.timeButtonActive
-          ]}
-          onPress={() => setTimeRange(period)}
-        >
-          <Text style={[
-            styles.timeButtonText,
-            timeRange === period && styles.timeButtonTextActive
-          ]}>
-            {period === 'current' ? 'Actuel' : period}
-          </Text>
-        </TouchableOpacity>
-      ))}
+      <Text style={styles.timeLabel}>Période de prévision</Text>
+      <View style={styles.timeButtonsRow}>
+        {['current', '3h', '6h', '9h', '12h'].map((period) => (
+          <TouchableOpacity
+            key={period}
+            style={[styles.timeButton, timeRange === period && styles.timeButtonActive]}
+            onPress={() => {
+              if (period === timeRange) return;
+              timeRangeRef.current = period;
+              setTimeRange(period);
+              fetchRainZones();
+              fetchDepartmentWeather();
+            }}
+          >
+            <Text style={[styles.timeButtonText, timeRange === period && styles.timeButtonTextActive]}>
+              {period === 'current' ? 'Actuel' : period}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
   
@@ -463,7 +390,7 @@ export default function RainMap() {
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         region={mapRegion}
-        onRegionChangeComplete={setMapRegion}
+        onRegionChangeComplete={handleRegionChange}
         showsUserLocation={true}
         showsMyLocationButton={false}
         initialRegion={mapRegion}
@@ -498,6 +425,14 @@ export default function RainMap() {
           />
         ))}
         
+        {/* Marqueurs par département */}
+        {departmentWeather.map((dept, idx) => (
+          <DepartmentMarker
+            key={`dept-${dept.name}-${dept.hasRain}-${dept.intensity || 'none'}`}
+            dept={dept}
+          />
+        ))}
+
         {/* Heatmap optionnel */}
         {rainZones.length > 5 && (
           <Heatmap
@@ -523,43 +458,66 @@ export default function RainMap() {
       
       {/* Contrôles de carte */}
       <View style={styles.mapControls}>
-        <TouchableOpacity 
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={() => {
+            const haitiRegion = { latitude: 19.0, longitude: -73.0, latitudeDelta: 4.0, longitudeDelta: 4.5 };
+            mapRegionRef.current = haitiRegion;
+            setMapRegion(haitiRegion);
+            if (mapRef.current) mapRef.current.animateToRegion(haitiRegion, 800);
+          }}
+        >
+          <Text style={styles.controlButtonTextSmall}>🇭🇹</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
           style={styles.controlButton}
           onPress={zoomToCurrentLocation}
         >
           <Text style={styles.controlButtonText}>📍</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.controlButton}
           onPress={() => {
-            setMapRegion({
-              ...mapRegion,
-              latitudeDelta: Math.max(0.001, mapRegion.latitudeDelta * 0.5),
-              longitudeDelta: Math.max(0.001, mapRegion.longitudeDelta * 0.5),
-            });
+            const r = mapRegionRef.current;
+            const newRegion = { ...r, latitudeDelta: Math.max(0.001, r.latitudeDelta * 0.5), longitudeDelta: Math.max(0.001, r.longitudeDelta * 0.5) };
+            mapRegionRef.current = newRegion;
+            setMapRegion(newRegion);
+            fetchRainZones();
           }}
         >
           <Text style={styles.controlButtonText}>+</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.controlButton}
           onPress={() => {
-            setMapRegion({
-              ...mapRegion,
-              latitudeDelta: Math.min(20, mapRegion.latitudeDelta * 2),
-              longitudeDelta: Math.min(20, mapRegion.longitudeDelta * 2),
-            });
+            const r = mapRegionRef.current;
+            const newRegion = { ...r, latitudeDelta: Math.min(20, r.latitudeDelta * 2), longitudeDelta: Math.min(20, r.longitudeDelta * 2) };
+            mapRegionRef.current = newRegion;
+            setMapRegion(newRegion);
+            fetchRainZones();
           }}
         >
           <Text style={styles.controlButtonText}>-</Text>
         </TouchableOpacity>
       </View>
       
+      {/* Barre de résumé départements — en haut sous le header */}
+      {departmentWeather.length > 0 && (
+        <View style={styles.deptSummaryBar}>
+          <Text style={styles.deptSummaryBarText}>
+            🌧️ {departmentWeather.filter(d => d.hasRain).length} sous la pluie
+            {'   '}
+            ☀️ {departmentWeather.filter(d => !d.hasRain).length} ensoleillé(s)
+          </Text>
+        </View>
+      )}
+
       {/* Légende */}
       {renderLegend()}
-      
+
       {/* Contrôles de temps */}
       {renderTimeControls()}
       
@@ -681,6 +639,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#2196F3',
     borderBottomWidth: 1,
     borderBottomColor: '#1976D2',
+  },
+
+  deptSummaryBar: {
+    position: 'absolute',
+    top: 89,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(21, 101, 192, 0.92)',
+    paddingVertical: 7,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    zIndex: 10,
+    elevation: 7,
+  },
+
+  deptSummaryBarText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   
   backButton: {
@@ -813,18 +791,18 @@ const styles = StyleSheet.create({
   
   legendContainer: {
     position: 'absolute',
-    top: 120,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    top: 119,
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.97)',
     borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
-    elevation: 6,
-    maxHeight: 300,
+    elevation: 8,
+    maxHeight: 400,
   },
   
   legendHeader: {
@@ -887,48 +865,106 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   
+  deptIconOnly: {
+    fontSize: 26,
+  },
+
+  deptSummaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+  },
+
+  deptSummaryItem: {
+    width: '30%',
+    margin: '1.5%',
+    alignItems: 'center',
+    padding: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+  },
+
+  deptSummaryIcon: {
+    fontSize: 18,
+  },
+
+  deptSummaryName: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#333',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+
+  deptSummaryVal: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: 1,
+  },
+
+  legendSectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#555',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+
+  controlButtonTextSmall: {
+    fontSize: 18,
+    color: '#2196F3',
+  },
+
   timeControls: {
     position: 'absolute',
     bottom: 120,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.97)',
     borderRadius: 12,
-    padding: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 6,
   },
-  
+
   timeLabel: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '600',
     color: '#2196F3',
-    marginRight: 15,
+    marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: 0.3,
   },
-  
+
+  timeButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+
   timeButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
+    flex: 1,
+    marginHorizontal: 3,
+    paddingVertical: 7,
     borderRadius: 8,
     backgroundColor: 'rgba(33, 150, 243, 0.1)',
-    marginHorizontal: 5,
+    alignItems: 'center',
   },
-  
+
   timeButtonActive: {
     backgroundColor: '#2196F3',
   },
-  
+
   timeButtonText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 11,
+    fontWeight: '600',
     color: '#2196F3',
   },
-  
+
   timeButtonTextActive: {
     color: '#fff',
   },

@@ -16,8 +16,8 @@ const userSchema = new mongoose.Schema({
   // },
   login: {
     type: String,
-    // required: true,
-    unique: true
+    unique: true,
+    sparse: true  // n'enforce l'unicité que sur les valeurs non-null
   },
   password: {
     type: String,
