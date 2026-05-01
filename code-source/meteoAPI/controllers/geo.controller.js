@@ -1,6 +1,30 @@
 const Station = require('../models/Station');
 const Data    = require('../models/Data');
 
+// ─── Données fixes pour les stations démo ────────────────────────────────────
+// Ces valeurs sont retournées directement sans passer par MongoDB,
+// garantissant un niveau d'alerte prévisible pour les tests.
+const DEMO_FIXED_DATA = {
+  'DEMO-PAP-01': {
+    temperature: 30.0, humidity: 65,   pressure: 1013.0, rainfall: 1.5,
+    wind_speed: 2.8,   wind_direction: 112, solar_radiation: 580, uv_index: 5,
+    visibility: 15,    dew_point: 21.0, battery_level: 92, signal_strength: -61,
+    device_status: 'ONLINE', feels_like: 31.5, heat_index: 32.0, source: 'SENSOR',
+  },
+  'DEMO-PAP-02': {
+    temperature: 35.0, humidity: 82,   pressure: 997.0,  rainfall: 22.0,
+    wind_speed: 14.0,  wind_direction: 245, solar_radiation: 190, uv_index: 8,
+    visibility: 7,     dew_point: 31.5, battery_level: 73, signal_strength: -74,
+    device_status: 'ONLINE', feels_like: 42.0, heat_index: 43.5, source: 'SENSOR',
+  },
+  'DEMO-PAP-03': {
+    temperature: 40.0, humidity: 96,   pressure: 985.0,  rainfall: 55.0,
+    wind_speed: 25.0,  wind_direction: 310, solar_radiation: 25,  uv_index: 11,
+    visibility: 1.5,   dew_point: 39.0, battery_level: 38, signal_strength: -87,
+    device_status: 'ONLINE', feels_like: 55.0, heat_index: 57.0, source: 'SENSOR',
+  },
+};
+
 /**
  * Trouver la station météo la plus proche
  * GET /api/geo/nearest?lat=..&lon=..
@@ -163,11 +187,14 @@ exports.getRealtime = async (req, res) => {
 exports.getDemoStations = async (req, res) => {
   try {
     const stations = await Station.find({ code: /^DEMO-/ }).sort({ code: 1 });
+    const now = new Date();
 
-    const result = await Promise.all(stations.map(async (station) => {
-      const latestData = await Data.findOne({ station: station._id })
-        .sort({ measured_at: -1 });
-      return { station, data: latestData || null };
+    const result = stations.map(station => ({
+      station,
+      // Données fixes si station démo connue, sinon MongoDB
+      data: DEMO_FIXED_DATA[station.code]
+        ? { ...DEMO_FIXED_DATA[station.code], measured_at: now, received_at: now }
+        : null,
     }));
 
     res.json(result);
@@ -266,8 +293,18 @@ exports.getForecast = async (req, res) => {
  */
 exports.getStationByCode = async (req, res) => {
   try {
-    const station = await Station.findOne({ code: req.params.code });
+    const code = req.params.code;
+    const station = await Station.findOne({ code });
     if (!station) return res.status(404).json({ message: 'Station non trouvée' });
+
+    // Stations démo : données fixes garanties, indépendantes de MongoDB
+    if (DEMO_FIXED_DATA[code]) {
+      const now = new Date();
+      return res.json({
+        station,
+        data: { ...DEMO_FIXED_DATA[code], measured_at: now, received_at: now },
+      });
+    }
 
     const data = await Data.findOne({ station: station._id })
       .sort({ measured_at: -1 });

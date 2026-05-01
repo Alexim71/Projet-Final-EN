@@ -1,5 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useSettings } from '../context/SettingsContext';
 import {
   ActivityIndicator,
   Dimensions,
@@ -42,64 +44,64 @@ function windDir(deg) {
   return ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'][Math.round(deg / 45) % 8];
 }
 
-function windLevel(kmh) {
-  if (kmh < 12) return { label: 'Calme',    color: '#4caf50' };
-  if (kmh < 29) return { label: 'Légère',   color: '#8bc34a' };
-  if (kmh < 50) return { label: 'Modérée',  color: '#ff9800' };
-  if (kmh < 75) return { label: 'Forte',    color: '#f44336' };
-  return           { label: 'Violente', color: '#9c27b0' };
+function windLevel(kmh, t) {
+  if (kmh < 12) return { label: t('cardDetail.windCalm'),    color: '#4caf50' };
+  if (kmh < 29) return { label: t('cardDetail.windLight'),   color: '#8bc34a' };
+  if (kmh < 50) return { label: t('cardDetail.windModerate'),color: '#ff9800' };
+  if (kmh < 75) return { label: t('cardDetail.windStrong'),  color: '#f44336' };
+  return           { label: t('cardDetail.windViolent'), color: '#9c27b0' };
 }
 
-function humidityLevel(pct) {
-  if (pct < 30) return { label: 'Très sec',     color: '#ff9800' };
-  if (pct < 50) return { label: 'Sec',           color: '#8bc34a' };
-  if (pct < 70) return { label: 'Confortable',   color: '#4caf50' };
-  if (pct < 85) return { label: 'Humide',        color: '#2196f3' };
-  return           { label: 'Très humide',   color: '#3f51b5' };
+function humidityLevel(pct, t) {
+  if (pct < 30) return { label: t('cardDetail.humidVerySec'),    color: '#ff9800' };
+  if (pct < 50) return { label: t('cardDetail.humidDry'),        color: '#8bc34a' };
+  if (pct < 70) return { label: t('cardDetail.humidComfort'),    color: '#4caf50' };
+  if (pct < 85) return { label: t('cardDetail.humidHumid'),      color: '#2196f3' };
+  return           { label: t('cardDetail.humidVeryHumid'),  color: '#3f51b5' };
 }
 
-function pressureLevel(hpa) {
-  if (hpa < 980)  return { label: 'Très basse — tempête probable', color: '#f44336' };
-  if (hpa < 1000) return { label: 'Basse — temps perturbé',        color: '#ff9800' };
-  if (hpa < 1013) return { label: 'Normale',                        color: '#4caf50' };
-  if (hpa < 1025) return { label: 'Haute — beau temps',            color: '#2196f3' };
-  return             { label: 'Très haute — beau temps stable',  color: '#1565c0' };
+function pressureLevel(hpa, t) {
+  if (hpa < 980)  return { label: t('cardDetail.pressVeryLow'), color: '#f44336' };
+  if (hpa < 1000) return { label: t('cardDetail.pressLow'),     color: '#ff9800' };
+  if (hpa < 1013) return { label: t('cardDetail.pressNormal'),  color: '#4caf50' };
+  if (hpa < 1025) return { label: t('cardDetail.pressHigh'),    color: '#2196f3' };
+  return             { label: t('cardDetail.pressVeryHigh'), color: '#1565c0' };
 }
 
-function uvLevel(idx) {
-  if (idx <= 2)  return { label: 'Faible',    color: '#4caf50', conseil: 'Pas de protection particulière nécessaire.' };
-  if (idx <= 5)  return { label: 'Modéré',    color: '#ff9800', conseil: 'Portez un chapeau et de la crème solaire SPF 30+.' };
-  if (idx <= 7)  return { label: 'Élevé',     color: '#f44336', conseil: 'Évitez le soleil entre 12h et 16h. SPF 50+.' };
-  if (idx <= 10) return { label: 'Très élevé',color: '#9c27b0', conseil: "Restez à l'ombre, protection maximale." };
-  return            { label: 'Extrême',    color: '#7b1fa2', conseil: 'Évitez toute exposition extérieure.' };
+function uvLevel(idx, t) {
+  if (idx <= 2)  return { label: t('cardDetail.uvLow'),     color: '#4caf50', conseil: t('cardDetail.uvConseil0') };
+  if (idx <= 5)  return { label: t('cardDetail.uvModerate'),color: '#ff9800', conseil: t('cardDetail.uvConseil1') };
+  if (idx <= 7)  return { label: t('cardDetail.uvHigh'),    color: '#f44336', conseil: t('cardDetail.uvConseil2') };
+  if (idx <= 10) return { label: t('cardDetail.uvVeryHigh'),color: '#9c27b0', conseil: t('cardDetail.uvConseil3') };
+  return            { label: t('cardDetail.uvExtreme'),  color: '#7b1fa2', conseil: t('cardDetail.uvConseil4') };
 }
 
-function getRainAlert(hourly) {
+function getRainAlert(hourly, t) {
   if (!hourly?.length) return null;
   const idx = hourly.slice(0, 24).findIndex(h => (h.precipitation || 0) >= 0.1);
-  if (idx < 0)   return 'Aucune précipitation prévue dans les 24 prochaines heures';
-  if (idx === 0) return 'Précipitations actuellement en cours';
-  if (idx <= 2)  return `Pluie attendue dans ${idx} heure(s)`;
-  return `Aucune précipitation dans les ${idx} prochaines heures`;
+  if (idx < 0)   return t('cardDetail.rainNone');
+  if (idx === 0) return t('cardDetail.rainNow');
+  if (idx <= 2)  return t('cardDetail.rainSoon', { count: idx });
+  return t('cardDetail.rainLater', { count: idx });
 }
 
 // ── Phase lunaire ─────────────────────────────────────────────────────────────
 const LUNAR_CYCLE   = 29.530588853;
 const KNOWN_NEW_MOON = new Date('2000-01-06T18:14:00Z');
 
-function getMoonPhase(date = new Date()) {
+function getMoonPhase(t, date = new Date()) {
   const elapsed  = (date - KNOWN_NEW_MOON) / 86400000;
   const cyclePos = ((elapsed % LUNAR_CYCLE) + LUNAR_CYCLE) % LUNAR_CYCLE;
   const illum    = Math.round(50 * (1 - Math.cos(2 * Math.PI * cyclePos / LUNAR_CYCLE)));
   let phase, emoji;
-  if      (cyclePos <  1.85) { phase = 'Nouvelle Lune';       emoji = '🌑'; }
-  else if (cyclePos <  7.38) { phase = 'Premier Croissant';   emoji = '🌒'; }
-  else if (cyclePos <  9.22) { phase = 'Premier Quartier';    emoji = '🌓'; }
-  else if (cyclePos < 14.77) { phase = 'Gibbeux Croissant';   emoji = '🌔'; }
-  else if (cyclePos < 16.61) { phase = 'Pleine Lune';         emoji = '🌕'; }
-  else if (cyclePos < 22.15) { phase = 'Gibbeux Décroissant'; emoji = '🌖'; }
-  else if (cyclePos < 23.99) { phase = 'Dernier Quartier';    emoji = '🌗'; }
-  else                        { phase = 'Dernier Croissant';  emoji = '🌘'; }
+  if      (cyclePos <  1.85) { phase = t('cardDetail.moonNew');           emoji = '🌑'; }
+  else if (cyclePos <  7.38) { phase = t('cardDetail.moonWaxingCrescent'); emoji = '🌒'; }
+  else if (cyclePos <  9.22) { phase = t('cardDetail.moonFirstQuarter');  emoji = '🌓'; }
+  else if (cyclePos < 14.77) { phase = t('cardDetail.moonWaxingGibbous'); emoji = '🌔'; }
+  else if (cyclePos < 16.61) { phase = t('cardDetail.moonFull');          emoji = '🌕'; }
+  else if (cyclePos < 22.15) { phase = t('cardDetail.moonWaningGibbous');emoji = '🌖'; }
+  else if (cyclePos < 23.99) { phase = t('cardDetail.moonLastQuarter');   emoji = '🌗'; }
+  else                        { phase = t('cardDetail.moonWaningCrescent');emoji = '🌘'; }
   const daysToFull = cyclePos < 14.77
     ? Math.ceil(14.77 - cyclePos)
     : Math.ceil(LUNAR_CYCLE - cyclePos + 14.77);
@@ -139,7 +141,7 @@ function LineChart({ data1, data2, bars, title, unit, col1, col2, barCol, legend
   const gradId = `g_${(title || '').replace(/\W/g, '')}`;
 
   return (
-    <View style={styles.chartBox}>
+    <View style={[styles.chartBox, { backgroundColor: '#fff' }]}>
       <Text style={styles.chartTitle}>
         {title} <Text style={styles.chartUnit}>({unit})</Text>
       </Text>
@@ -191,8 +193,11 @@ function LineChart({ data1, data2, bars, title, unit, col1, col2, barCol, legend
 export default function CardDetail() {
   const params = useLocalSearchParams();
   const router = useRouter();
+  const { darkMode } = useSettings();
+  const { t } = useTranslation();
 
   const cardId = parseInt(params.cardId) || 1;
+  const isBatteryCard = cardId === 8;
   const lat    = parseFloat(params.lat);
   const lon    = parseFloat(params.lon);
 
@@ -225,8 +230,8 @@ export default function CardDetail() {
     if (cardId === 9) {
       return (
         <LineChart data1={moonIllumCurve(30)}
-          title="Illumination lunaire (30 jours)" unit="%"
-          col1="#cfd8dc" legend1="Illumination" />
+          title={t('cardDetail.chartMoon')} unit="%"
+          col1="#cfd8dc" legend1={t('cardDetail.legendIllum')} />
       );
     }
     if (!forecast) return null;
@@ -234,23 +239,23 @@ export default function CardDetail() {
     switch (cardId) {
       case 1: return (
         <LineChart data1={d.map(x => x.windSpeedMax)} data2={d.map(x => x.windGustsMax)}
-          title="Vent (7 jours)" unit="km/h" col1="#ff8f00" col2="#ff5722"
-          legend1="Vitesse max" legend2="Rafales max" />
+          title={t('cardDetail.chartWind')} unit="km/h" col1="#ff8f00" col2="#ff5722"
+          legend1={t('cardDetail.legendWindMax')} legend2={t('cardDetail.legendGustsMax')} />
       );
       case 2: return (
         <LineChart data1={d.map(x => x.humidityMax)} bars={d.map(x => x.precipitation)}
-          title="Humidité (7 jours)" unit="%" col1="#0288d1"
-          barCol="rgba(76,175,80,0.5)" legend1="Humidité max" />
+          title={t('cardDetail.chartHumidity')} unit="%" col1="#0288d1"
+          barCol="rgba(76,175,80,0.5)" legend1={t('cardDetail.legendHumidMax')} />
       );
       case 3: return (
         <LineChart data1={d.map(x => x.pressureMean)}
-          title="Pression (7 jours)" unit="hPa" col1="#8e24aa" legend1="Pression moyenne" />
+          title={t('cardDetail.chartPressure')} unit="hPa" col1="#8e24aa" legend1={t('cardDetail.legendPressureAvg')} />
       );
       default: return (
         <LineChart data1={d.map(x => x.tempMax)} data2={d.map(x => x.tempMin)}
           bars={d.map(x => x.precipitation)}
-          title="Température (7 jours)" unit="°C" col1="#e53935" col2="#1e88e5"
-          legend1="Max" legend2="Min" />
+          title={t('cardDetail.chartTemp')} unit="°C" col1="#e53935" col2="#1e88e5"
+          legend1={t('cardDetail.legendTempMax')} legend2={t('cardDetail.legendTempMin')} />
       );
     }
   };
@@ -261,10 +266,10 @@ export default function CardDetail() {
     const w     = weather || {};
 
     const windKmh = (w.wind_speed || 0) * 3.6;
-    const wLvl    = windLevel(windKmh);
-    const hLvl    = humidityLevel(w.humidity || 0);
-    const pLvl    = pressureLevel(w.pressure || 1013);
-    const uLvl    = uvLevel(w.uv_index || 0);
+    const wLvl    = windLevel(windKmh, t);
+    const hLvl    = humidityLevel(w.humidity || 0, t);
+    const pLvl    = pressureLevel(w.pressure || 1013, t);
+    const uLvl    = uvLevel(w.uv_index || 0, t);
 
     let sectionTitle = '';
     let conseil = '';
@@ -272,132 +277,122 @@ export default function CardDetail() {
 
     switch (cardId) {
       case 1: {
-        sectionTitle = '💨 Détails du vent';
-        conseil = windKmh < 12
-          ? 'Conditions calmes. Idéal pour toutes activités extérieures.'
-          : windKmh < 50
-          ? 'Vent modéré. Prudence pour les activités nautiques légères.'
-          : 'Vent fort. Évitez les activités en plein air exposées.';
+        sectionTitle = t('cardDetail.sectionWind');
+        conseil = windKmh < 12 ? t('cardDetail.conseilWindCalm')
+          : windKmh < 50 ? t('cardDetail.conseilWindModerate')
+          : t('cardDetail.conseilWindStrong');
         rows = [
-          { label: 'Vitesse actuelle',     value: `${windKmh.toFixed(1)} km/h` },
-          { label: 'Direction',            value: `${windDir(w.wind_direction)} (${w.wind_direction ?? '--'}°)`, alt: true },
-          { label: 'Rafales max (jour)',   value: today ? `${today.windGustsMax?.toFixed(0) ?? '--'} km/h` : '--' },
-          { label: 'Vitesse max (jour)',   value: today ? `${today.windSpeedMax?.toFixed(0) ?? '--'} km/h` : '--', alt: true },
-          { label: 'Niveau',              value: wLvl.label, vc: wLvl.color },
-          { label: "Précip. aujourd'hui", value: today ? `${today.precipitation?.toFixed(1) ?? '0'} mm` : '--', alt: true },
+          { label: t('cardDetail.labelCurrentSpeed'),  value: `${windKmh.toFixed(1)} km/h` },
+          { label: t('cardDetail.labelDirection'),     value: `${windDir(w.wind_direction)} (${w.wind_direction ?? '--'}°)`, alt: true },
+          { label: t('cardDetail.labelGustsMax'),      value: today ? `${today.windGustsMax?.toFixed(0) ?? '--'} km/h` : '--' },
+          { label: t('cardDetail.labelSpeedMax'),      value: today ? `${today.windSpeedMax?.toFixed(0) ?? '--'} km/h` : '--', alt: true },
+          { label: t('cardDetail.labelLevel'),         value: wLvl.label, vc: wLvl.color },
+          { label: t('cardDetail.labelPrecipToday'),   value: today ? `${today.precipitation?.toFixed(1) ?? '0'} mm` : '--', alt: true },
         ];
         break;
       }
       case 2: {
-        sectionTitle = "💧 Détails de l'humidité";
-        conseil = (w.humidity || 0) < 40
-          ? 'Air sec. Pensez à vous hydrater régulièrement.'
-          : (w.humidity || 0) < 70
-          ? "Niveau d'humidité confortable."
-          : 'Air très humide. Risque de sensation de chaleur accrue.';
+        sectionTitle = t('cardDetail.sectionHumidity');
+        conseil = (w.humidity || 0) < 40 ? t('cardDetail.conseilHumidDry')
+          : (w.humidity || 0) < 70 ? t('cardDetail.conseilHumidComfort')
+          : t('cardDetail.conseilHumidHigh');
         rows = [
-          { label: 'Humidité actuelle',    value: `${(w.humidity || 0).toFixed(1)}%` },
-          { label: 'Point de rosée',       value: `${(w.dew_point || 0).toFixed(1)}°C`, alt: true },
-          { label: 'Ressenti',             value: `${(w.feels_like || 0).toFixed(1)}°C` },
-          { label: 'Humidité max (jour)',  value: today ? `${today.humidityMax?.toFixed(0) ?? '--'}%` : '--', alt: true },
-          { label: 'Confort',              value: hLvl.label, vc: hLvl.color },
-          { label: "Précip. aujourd'hui", value: today ? `${today.precipitation?.toFixed(1) ?? '0'} mm` : '--', alt: true },
+          { label: t('cardDetail.labelCurrentHumid'),  value: `${(w.humidity || 0).toFixed(1)}%` },
+          { label: t('cardDetail.labelDewPoint'),       value: `${(w.dew_point || 0).toFixed(1)}°C`, alt: true },
+          { label: t('cardDetail.labelFeelsLike'),      value: `${(w.feels_like || 0).toFixed(1)}°C` },
+          { label: t('cardDetail.labelHumidMax'),       value: today ? `${today.humidityMax?.toFixed(0) ?? '--'}%` : '--', alt: true },
+          { label: t('cardDetail.labelComfort'),        value: hLvl.label, vc: hLvl.color },
+          { label: t('cardDetail.labelPrecipToday'),    value: today ? `${today.precipitation?.toFixed(1) ?? '0'} mm` : '--', alt: true },
         ];
         break;
       }
       case 3: {
-        sectionTitle = '📊 Détails de la pression';
-        conseil = (w.pressure || 1013) < 1000
-          ? 'Pression basse : temps instable ou orageux possible.'
-          : (w.pressure || 1013) > 1020
-          ? 'Haute pression : beau temps stable attendu.'
-          : 'Pression normale. Conditions météo stables.';
+        sectionTitle = t('cardDetail.sectionPressure');
+        conseil = (w.pressure || 1013) < 1000 ? t('cardDetail.conseilPressLow')
+          : (w.pressure || 1013) > 1020 ? t('cardDetail.conseilPressHigh')
+          : t('cardDetail.conseilPressNormal');
         const diffP   = today ? ((w.pressure || 1013) - (today.pressureMean || 1013)) : 0;
-        const tendance = Math.abs(diffP) < 1 ? 'Stable'
-          : diffP > 0 ? `↑ En hausse (+${diffP.toFixed(0)} hPa)`
-          : `↓ En baisse (${diffP.toFixed(0)} hPa)`;
+        const tendance = Math.abs(diffP) < 1 ? t('cardDetail.trendStable')
+          : diffP > 0 ? t('cardDetail.trendUp', { diff: diffP.toFixed(0) })
+          : t('cardDetail.trendDown', { diff: diffP.toFixed(0) });
         rows = [
-          { label: 'Pression actuelle',    value: `${(w.pressure || 0).toFixed(1)} hPa` },
-          { label: 'Pression moy. (jour)', value: today ? `${today.pressureMean?.toFixed(1) ?? '--'} hPa` : '--', alt: true },
-          { label: 'Tendance',             value: tendance },
-          { label: 'Niveau',              value: pLvl.label, vc: pLvl.color, alt: true },
-          { label: 'Visibilité',          value: `${(w.visibility || 0).toFixed(1)} km` },
-          { label: "Précip. aujourd'hui", value: today ? `${today.precipitation?.toFixed(1) ?? '0'} mm` : '--', alt: true },
+          { label: t('cardDetail.labelCurrentPressure'), value: `${(w.pressure || 0).toFixed(1)} hPa` },
+          { label: t('cardDetail.labelAvgPressure'),     value: today ? `${today.pressureMean?.toFixed(1) ?? '--'} hPa` : '--', alt: true },
+          { label: t('cardDetail.labelTrend'),           value: tendance },
+          { label: t('cardDetail.labelLevel'),           value: pLvl.label, vc: pLvl.color, alt: true },
+          { label: t('cardDetail.labelVisibility'),      value: `${(w.visibility || 0).toFixed(1)} km` },
+          { label: t('cardDetail.labelPrecipToday'),     value: today ? `${today.precipitation?.toFixed(1) ?? '0'} mm` : '--', alt: true },
         ];
         break;
       }
       case 4: {
-        sectionTitle = '☀️ Indice UV & Soleil';
+        sectionTitle = t('cardDetail.sectionUV');
         conseil = uLvl.conseil;
         rows = [
-          { label: 'Indice UV actuel',  value: `${w.uv_index ?? '--'} — ${uLvl.label}`, vc: uLvl.color },
-          { label: 'Radiation solaire', value: `${w.solar_radiation ?? '--'} W/m²`, alt: true },
-          { label: 'Protection',        value: (w.uv_index || 0) <= 2 ? 'Non requise' : (w.uv_index || 0) <= 5 ? 'SPF 30+' : 'SPF 50+ obligatoire' },
-          { label: 'Heure de pic UV',   value: '12h00 – 14h00', alt: true },
-          { label: 'Météo du jour',     value: today ? `${weatherEmoji(today.weathercode)} Max ${today.tempMax?.toFixed(0) ?? '--'}°C` : '--' },
+          { label: t('cardDetail.labelUVCurrent'),      value: `${w.uv_index ?? '--'} — ${uLvl.label}`, vc: uLvl.color },
+          { label: t('cardDetail.labelSolarRadiation'), value: `${w.solar_radiation ?? '--'} W/m²`, alt: true },
+          { label: t('cardDetail.labelProtection'),     value: (w.uv_index || 0) <= 2 ? t('cardDetail.protectionNotRequired') : (w.uv_index || 0) <= 5 ? t('cardDetail.protectionSPF30') : t('cardDetail.protectionSPF50') },
+          { label: t('cardDetail.labelUVPeak'),         value: '12h00 – 14h00', alt: true },
+          { label: t('cardDetail.labelWeatherDay'),     value: today ? `${weatherEmoji(today.weathercode)} Max ${today.tempMax?.toFixed(0) ?? '--'}°C` : '--' },
         ];
         break;
       }
       case 5: {
-        sectionTitle = '🌡️ Température & Ressenti';
+        sectionTitle = t('cardDetail.sectionTemp');
         const diff5 = (w.feels_like || 0) - (w.temperature || 0);
-        conseil = Math.abs(diff5) < 1
-          ? 'La température perçue correspond à la température réelle.'
-          : diff5 < 0
-          ? "Le vent ou l'humidité abaissent la température perçue."
-          : "L'humidité élevée augmente la sensation de chaleur.";
+        conseil = Math.abs(diff5) < 1 ? t('cardDetail.conseilTempEqual')
+          : diff5 < 0 ? t('cardDetail.conseilTempLower')
+          : t('cardDetail.conseilTempHigher');
         rows = [
-          { label: 'Température réelle', value: `${(w.temperature || 0).toFixed(1)}°C` },
-          { label: 'Ressenti',           value: `${(w.feels_like || 0).toFixed(1)}°C`, alt: true },
-          { label: 'Différence',         value: `${diff5 >= 0 ? '+' : ''}${diff5.toFixed(1)}°C` },
-          { label: 'Max du jour',        value: today ? `${today.tempMax?.toFixed(1) ?? '--'}°C` : '--', alt: true },
-          { label: 'Min du jour',        value: today ? `${today.tempMin?.toFixed(1) ?? '--'}°C` : '--' },
-          { label: 'Humidité',           value: `${(w.humidity || 0).toFixed(0)}%`, alt: true },
+          { label: t('cardDetail.labelRealTemp'),  value: `${(w.temperature || 0).toFixed(1)}°C` },
+          { label: t('cardDetail.labelFeelsLike'), value: `${(w.feels_like || 0).toFixed(1)}°C`, alt: true },
+          { label: t('cardDetail.labelDiff'),      value: `${diff5 >= 0 ? '+' : ''}${diff5.toFixed(1)}°C` },
+          { label: t('cardDetail.labelMaxDay'),    value: today ? `${today.tempMax?.toFixed(1) ?? '--'}°C` : '--', alt: true },
+          { label: t('cardDetail.labelMinDay'),    value: today ? `${today.tempMin?.toFixed(1) ?? '--'}°C` : '--' },
+          { label: t('cardDetail.labelHumidity'),  value: `${(w.humidity || 0).toFixed(0)}%`, alt: true },
         ];
         break;
       }
       case 6: {
-        sectionTitle = '💧 Point de rosée';
+        sectionTitle = t('cardDetail.sectionDewPoint');
         const dp = w.dew_point || 0;
-        conseil = dp < 10 ? 'Air sec et frais. Confort optimal.'
-          : dp < 16 ? 'Point de rosée confortable.'
-          : dp < 21 ? 'Air humide et collant. Hydratez-vous bien.'
-          : 'Chaleur étouffante. Restez au frais.';
+        conseil = dp < 10 ? t('cardDetail.conseilDewCool')
+          : dp < 16 ? t('cardDetail.conseilDewComfort')
+          : dp < 21 ? t('cardDetail.conseilDewSticky')
+          : t('cardDetail.conseilDewStuffy');
         rows = [
-          { label: 'Point de rosée',     value: `${(w.dew_point || 0).toFixed(1)}°C` },
-          { label: 'Humidité relative',  value: `${(w.humidity || 0).toFixed(1)}%`, alt: true },
-          { label: 'Température réelle', value: `${(w.temperature || 0).toFixed(1)}°C` },
-          { label: 'Ressenti',           value: `${(w.feels_like || 0).toFixed(1)}°C`, alt: true },
-          { label: 'Confort',            value: hLvl.label, vc: hLvl.color },
+          { label: t('cardDetail.labelDewPoint'),    value: `${(w.dew_point || 0).toFixed(1)}°C` },
+          { label: t('cardDetail.labelRelHumidity'), value: `${(w.humidity || 0).toFixed(1)}%`, alt: true },
+          { label: t('cardDetail.labelRealTemp'),    value: `${(w.temperature || 0).toFixed(1)}°C` },
+          { label: t('cardDetail.labelFeelsLike'),   value: `${(w.feels_like || 0).toFixed(1)}°C`, alt: true },
+          { label: t('cardDetail.labelComfort'),     value: hLvl.label, vc: hLvl.color },
         ];
         break;
       }
       case 7: {
-        sectionTitle = '☀️ Radiation solaire';
-        conseil = (w.solar_radiation || 0) < 100 ? 'Faible ensoleillement. Pas de risque UV.'
-          : (w.solar_radiation || 0) < 400 ? 'Ensoleillement modéré.'
-          : 'Fort ensoleillement. Protégez-vous du soleil.';
+        sectionTitle = t('cardDetail.sectionSolar');
+        conseil = (w.solar_radiation || 0) < 100 ? t('cardDetail.conseilSolarLow')
+          : (w.solar_radiation || 0) < 400 ? t('cardDetail.conseilSolarMod')
+          : t('cardDetail.conseilSolarHigh');
         rows = [
-          { label: 'Radiation actuelle', value: `${w.solar_radiation ?? '--'} W/m²` },
-          { label: 'Indice UV',          value: `${w.uv_index ?? '--'} — ${uLvl.label}`, vc: uLvl.color, alt: true },
-          { label: 'Max temp. (jour)',   value: today ? `${today.tempMax?.toFixed(1) ?? '--'}°C` : '--' },
-          { label: 'Min temp. (jour)',   value: today ? `${today.tempMin?.toFixed(1) ?? '--'}°C` : '--', alt: true },
-          { label: 'Météo du jour',      value: today ? weatherEmoji(today.weathercode) : '--' },
+          { label: t('cardDetail.labelSolarCurrent'), value: `${w.solar_radiation ?? '--'} W/m²` },
+          { label: t('cardDetail.labelUVIndex'),      value: `${w.uv_index ?? '--'} — ${uLvl.label}`, vc: uLvl.color, alt: true },
+          { label: t('cardDetail.labelMaxTempDay'),   value: today ? `${today.tempMax?.toFixed(1) ?? '--'}°C` : '--' },
+          { label: t('cardDetail.labelMinTempDay'),   value: today ? `${today.tempMin?.toFixed(1) ?? '--'}°C` : '--', alt: true },
+          { label: t('cardDetail.labelWeatherDay'),   value: today ? weatherEmoji(today.weathercode) : '--' },
         ];
         break;
       }
       case 9: {
-        const moon = getMoonPhase();
-        sectionTitle = '🌙 Informations lunaires';
-        conseil = moon.illum > 80
-          ? 'Pleine lune ou quasi-pleine : nuits très lumineuses.'
-          : moon.illum < 20
-          ? 'Nouvelle lune : nuits sombres, idéal pour observer les étoiles.'
-          : 'Phase intermédiaire : visibilité nocturne modérée.';
+        const moon = getMoonPhase(t);
+        sectionTitle = t('cardDetail.sectionMoon');
+        conseil = moon.illum > 80 ? t('cardDetail.conseilMoonBright')
+          : moon.illum < 20 ? t('cardDetail.conseilMoonDark')
+          : t('cardDetail.conseilMoonMid');
         // Calcule les prochaines phases
         const phases = [
-          { label: '🌕 Prochaine Pleine Lune', days: moon.daysToFull },
-          { label: '🌑 Prochaine Nouvelle Lune', days: moon.daysToNew },
+          { label: t('cardDetail.labelNextFullMoon'), days: moon.daysToFull },
+          { label: t('cardDetail.labelNextNewMoon'),  days: moon.daysToNew },
         ].sort((a, b) => a.days - b.days);
         // Prochaines phases dans l'ordre du cycle
         const nextPhaseDate = (daysAhead) => {
@@ -405,55 +400,53 @@ export default function CardDetail() {
           return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
         };
         rows = [
-          { label: 'Phase actuelle',       value: `${moon.emoji}  ${moon.phase}` },
-          { label: 'Illumination',         value: `${moon.illum}%`, alt: true },
-          { label: 'Progression du cycle', value: `J+${Math.round(moon.cyclePos)} / 29.5` },
-          { label: phases[0].label,        value: `dans ${phases[0].days} j (${nextPhaseDate(phases[0].days)})`, alt: true },
-          { label: phases[1].label,        value: `dans ${phases[1].days} j (${nextPhaseDate(phases[1].days)})` },
-          { label: 'Prochain Premier Qrt', value: (() => {
+          { label: t('cardDetail.labelCurrentPhase'),    value: `${moon.emoji}  ${moon.phase}` },
+          { label: t('cardDetail.labelIllumination'),    value: `${moon.illum}%`, alt: true },
+          { label: t('cardDetail.labelCycleProgress'),   value: `J+${Math.round(moon.cyclePos)} / 29.5` },
+          { label: phases[0].label,                      value: t('cardDetail.inDays', { count: phases[0].days, date: nextPhaseDate(phases[0].days) }), alt: true },
+          { label: phases[1].label,                      value: t('cardDetail.inDays', { count: phases[1].days, date: nextPhaseDate(phases[1].days) }) },
+          { label: t('cardDetail.labelNextFirstQ'), value: (() => {
             const d = moon.cyclePos < 9.22
               ? Math.ceil(9.22 - moon.cyclePos)
               : Math.ceil(LUNAR_CYCLE - moon.cyclePos + 9.22);
-            return `dans ${d} j (${nextPhaseDate(d)})`;
+            return t('cardDetail.inDays', { count: d, date: nextPhaseDate(d) });
           })(), alt: true },
-          { label: 'Prochain Dernier Qrt', value: (() => {
+          { label: t('cardDetail.labelNextLastQ'), value: (() => {
             const d = moon.cyclePos < 23.99
               ? Math.ceil(23.99 - moon.cyclePos)
               : Math.ceil(LUNAR_CYCLE - moon.cyclePos + 23.99);
-            return `dans ${d} j (${nextPhaseDate(d)})`;
+            return t('cardDetail.inDays', { count: d, date: nextPhaseDate(d) });
           })() },
         ];
         break;
       }
       default: {
-        sectionTitle = '🔋 État de la station';
-        conseil = (w.battery_level || 0) < 20
-          ? 'Batterie faible. La station doit être rechargée prochainement.'
-          : 'Station opérationnelle.';
+        sectionTitle = t('cardDetail.sectionStation');
+        conseil = (w.battery_level || 0) < 20 ? t('cardDetail.conseilBatteryLow') : t('cardDetail.conseilBatteryOk');
         rows = [
-          { label: 'Niveau de batterie', value: `${w.battery_level ?? '--'}%`, vc: (w.battery_level || 0) < 20 ? '#f44336' : '#4caf50' },
-          { label: 'Signal',             value: `${w.signal_strength ?? '--'} dBm`, alt: true },
-          { label: 'Statut',             value: w.device_status || 'UNKNOWN' },
-          { label: 'Source données',     value: w.source || '--', alt: true },
-          { label: 'Dernière mesure',    value: w.measured_at ? new Date(w.measured_at).toLocaleTimeString('fr-FR') : '--' },
+          { label: t('cardDetail.labelBattery'),     value: `${w.battery_level ?? '--'}%`, vc: (w.battery_level || 0) < 20 ? '#f44336' : '#4caf50' },
+          { label: t('cardDetail.labelSignal'),      value: `${w.signal_strength ?? '--'} dBm`, alt: true },
+          { label: t('cardDetail.labelStatus'),      value: w.device_status || 'UNKNOWN' },
+          { label: t('cardDetail.labelDataSource'),  value: w.source || '--', alt: true },
+          { label: t('cardDetail.labelLastMeasure'), value: w.measured_at ? new Date(w.measured_at).toLocaleTimeString('fr-FR') : '--' },
         ];
         break;
       }
     }
 
     return (
-      <View style={styles.detailsBox}>
-        <Text style={styles.detailsSectionTitle}>{sectionTitle}</Text>
+      <View style={[styles.detailsBox, { backgroundColor: dm.card }]}>
+        <Text style={[styles.detailsSectionTitle, { backgroundColor: darkMode ? "#0d2a4a" : "#f0f4ff", color: darkMode ? "#4facfe" : "#1565C0" }]}>{sectionTitle}</Text>
         {rows.map((r, i) => (
-          <View key={i} style={[styles.detailRow, r.alt && styles.detailRowAlt]}>
-            <Text style={styles.detailLabel}>{r.label}</Text>
-            <Text style={[styles.detailValue, r.vc && { color: r.vc }]}>{r.value}</Text>
+          <View key={i} style={[styles.detailRow, r.alt && styles.detailRowAlt, { backgroundColor: r.alt ? dm.cardAlt : dm.card, borderBottomColor: dm.border }]}>
+            <Text style={[styles.detailLabel, { color: dm.sub }]}>{r.label}</Text>
+            <Text style={[styles.detailValue, { color: dm.text }, r.vc && { color: r.vc }]}>{r.value}</Text>
           </View>
         ))}
         {conseil !== '' && (
-          <View style={styles.conseilBox}>
-            <Text style={styles.conseilTitle}>💡 Conseil</Text>
-            <Text style={styles.conseilText}>{conseil}</Text>
+          <View style={[styles.conseilBox, { backgroundColor: darkMode ? "rgba(79,172,254,0.1)" : "#e8f4fd", borderLeftColor: darkMode ? "#4facfe" : "#1565C0" }]}>
+            <Text style={[styles.conseilTitle, { color: darkMode ? "#4facfe" : "#1565C0" }]}>{t('cardDetail.conseil')}</Text>
+            <Text style={[styles.conseilText, { color: dm.text }]}>{conseil}</Text>
           </View>
         )}
       </View>
@@ -468,29 +461,29 @@ export default function CardDetail() {
     const slots = SLOTS.map(h => forecast.hourly[base + h] || {});
 
     const TRow = ({ label, alt, children }) => (
-      <View style={[styles.tRow, alt && styles.tRowAlt]}>
-        <View style={styles.tLabel}><Text style={styles.tLabelTxt} numberOfLines={2}>{label}</Text></View>
+      <View style={[styles.tRow, alt && styles.tRowAlt, { backgroundColor: alt ? dm.cardAlt : dm.card, borderBottomColor: dm.border }]}>
+        <View style={styles.tLabel}><Text style={[styles.tLabelTxt, { color: dm.sub }]} numberOfLines={2}>{label}</Text></View>
         {children}
       </View>
     );
     const TCol = ({ children }) => <View style={styles.tCol}>{children}</View>;
 
     return (
-      <View style={styles.tableauBox}>
-        <Text style={styles.tableauTitle}>📅 Prévisions du jour</Text>
+      <View style={[styles.tableauBox, { backgroundColor: dm.card }]}>
+        <Text style={[styles.tableauTitle, { backgroundColor: darkMode ? "#0d2a4a" : "#f0f4ff", color: darkMode ? "#4facfe" : "#1565C0" }]}>{t('cardDetail.tableTitle')}</Text>
 
         {/* onglets jours */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
           style={styles.dayTabs} contentContainerStyle={styles.dayTabsContent}>
           {forecast.daily.map((day, i) => {
             const dt    = new Date(day.date);
-            const label = i === 0 ? 'Auj.' : i === 1 ? 'Dem.' : `${DAY_FR[dt.getDay()]}.${dt.getDate()}`;
+            const label = i === 0 ? t('cardDetail.todayShort') : i === 1 ? t('cardDetail.tomorrowShort') : `${DAY_FR[dt.getDay()]}.${dt.getDate()}`;
             return (
               <TouchableOpacity key={i}
-                style={[styles.dayTab, selectedDay === i && styles.dayTabActive]}
+                style={[styles.dayTab, { backgroundColor: darkMode ? "#2c2c2e" : "#f0f0f0" }, selectedDay === i && styles.dayTabActive]}
                 onPress={() => setSelectedDay(i)}>
                 <Text style={styles.dayTabEmoji}>{weatherEmoji(day.weathercode)}</Text>
-                <Text style={[styles.dayTabTxt, selectedDay === i && styles.dayTabTxtActive]}>{label}</Text>
+                <Text style={[styles.dayTabTxt, { color: dm.sub }, selectedDay === i && styles.dayTabTxtActive]}>{label}</Text>
                 <Text style={styles.dayTabTemp}>{day.tempMax != null ? `${Math.round(day.tempMax)}°` : '--'}</Text>
               </TouchableOpacity>
             );
@@ -498,11 +491,11 @@ export default function CardDetail() {
         </ScrollView>
 
         {/* en-tête colonnes */}
-        <View style={[styles.tRow, { borderBottomWidth: 1.5, borderBottomColor: '#e0e0e0' }]}>
+        <View style={[styles.tRow, { borderBottomWidth: 1.5, borderBottomColor: dm.border, backgroundColor: dm.card }]}>
           <View style={styles.tLabel} />
-          {SLOT_LBL.map(l => (
+          {[t('cardDetail.slotMorning'), t('cardDetail.slotMidday'), t('cardDetail.slotEvening'), t('cardDetail.slotNight')].map(l => (
             <View key={l} style={styles.tCol}>
-              <Text style={styles.tHeadTxt}>{l}</Text>
+              <Text style={[styles.tHeadTxt, { color: darkMode ? "#4facfe" : "#1565C0" }]}>{l}</Text>
             </View>
           ))}
         </View>
@@ -512,40 +505,40 @@ export default function CardDetail() {
           {slots.map((s, i) => (
             <TCol key={i}>
               <Text style={styles.slotIcon}>{weatherEmoji(s.weathercode)}</Text>
-              <Text style={styles.slotTemp}>{s.temperature != null ? `${Math.round(s.temperature)}°` : '--'}</Text>
+              <Text style={[styles.slotTemp, { color: dm.text }]}>{s.temperature != null ? `${Math.round(s.temperature)}°` : '--'}</Text>
             </TCol>
           ))}
         </TRow>
 
-        <TRow label="Ressenti" alt>
-          {slots.map((s, i) => <TCol key={i}><Text style={styles.slotVal}>{s.feelsLike != null ? `${Math.round(s.feelsLike)}°` : '--'}</Text></TCol>)}
+        <TRow label={t('cardDetail.rowFeelsLike')} alt>
+          {slots.map((s, i) => <TCol key={i}><Text style={[styles.slotVal, { color: dm.text }]}>{s.feelsLike != null ? `${Math.round(s.feelsLike)}°` : '--'}</Text></TCol>)}
         </TRow>
 
-        <TRow label={'Vent\nkm/h'}>
+        <TRow label={t('cardDetail.rowWind')}>
           {slots.map((s, i) => (
             <TCol key={i}>
-              <Text style={styles.slotVal}>{s.windSpeed != null ? Math.round(s.windSpeed) : '--'}</Text>
-              <Text style={styles.slotMeta}>{windDir(s.windDirection)}</Text>
+              <Text style={[styles.slotVal, { color: dm.text }]}>{s.windSpeed != null ? Math.round(s.windSpeed) : '--'}</Text>
+              <Text style={[styles.slotMeta, { color: dm.sub }]}>{windDir(s.windDirection)}</Text>
             </TCol>
           ))}
         </TRow>
 
-        <TRow label="Rafales" alt>
-          {slots.map((s, i) => <TCol key={i}><Text style={styles.slotVal}>{s.windGusts != null ? Math.round(s.windGusts) : '--'}</Text></TCol>)}
+        <TRow label={t('cardDetail.rowGusts')} alt>
+          {slots.map((s, i) => <TCol key={i}><Text style={[styles.slotVal, { color: dm.text }]}>{s.windGusts != null ? Math.round(s.windGusts) : '--'}</Text></TCol>)}
         </TRow>
 
-        <TRow label="Humidité">
-          {slots.map((s, i) => <TCol key={i}><Text style={styles.slotVal}>{s.humidity != null ? `${s.humidity}%` : '--'}</Text></TCol>)}
+        <TRow label={t('cardDetail.rowHumidity')}>
+          {slots.map((s, i) => <TCol key={i}><Text style={[styles.slotVal, { color: dm.text }]}>{s.humidity != null ? `${s.humidity}%` : '--'}</Text></TCol>)}
         </TRow>
 
-        <TRow label={'Pression\nhPa'} alt>
-          {slots.map((s, i) => <TCol key={i}><Text style={styles.slotVal}>{s.pressure != null ? Math.round(s.pressure) : '--'}</Text></TCol>)}
+        <TRow label={t('cardDetail.rowPressure')} alt>
+          {slots.map((s, i) => <TCol key={i}><Text style={[styles.slotVal, { color: dm.text }]}>{s.pressure != null ? Math.round(s.pressure) : '--'}</Text></TCol>)}
         </TRow>
 
-        <TRow label={'Précip.\nmm'}>
+        <TRow label={t('cardDetail.rowPrecip')}>
           {slots.map((s, i) => (
             <TCol key={i}>
-              <Text style={[styles.slotVal, { color: (s.precipitation || 0) >= 0.1 ? '#1e88e5' : '#aaa' }]}>
+              <Text style={[styles.slotVal, { color: (s.precipitation || 0) >= 0.1 ? '#1e88e5' : dm.sub }]}>
                 {s.precipitation != null ? s.precipitation.toFixed(1) : '0.0'}
               </Text>
             </TCol>
@@ -558,26 +551,37 @@ export default function CardDetail() {
   // ── rendu principal ───────────────────────────────────────────────────────
   const stationName = station?.address || station?.code || params.cardTitle || 'Station météo';
   const location    = [station?.department, 'Haïti'].filter(Boolean).join(', ') || 'Haïti';
-  const alert       = forecast ? getRainAlert(forecast.hourly) : null;
+  const alert       = forecast ? getRainAlert(forecast.hourly, t) : null;
+
+  const dm = {
+    bg:     darkMode ? "#0a0a0a" : "#f5f8ff",
+    card:   darkMode ? "#1c1c1e" : "#ffffff",
+    cardAlt:darkMode ? "#2c2c2e" : "#fafafa",
+    text:   darkMode ? "#ffffff" : "#1a1a1a",
+    sub:    darkMode ? "#999999" : "#888888",
+    border: darkMode ? "#2c2c2e" : "#e8e8e8",
+    headerBg: darkMode ? "#0d2a4a" : "#1565C0",
+    stationBg: darkMode ? "#1c1c1e" : "#ffffff",
+  };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: dm.bg }]}>
       {/* header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: dm.headerBg }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Text style={styles.backArrow}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={2}>{alert || 'Prévisions météo'}</Text>
+        <Text style={styles.headerTitle} numberOfLines={2}>{alert || t('cardDetail.header')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       {/* station */}
-      <View style={styles.stationBar}>
+      <View style={[styles.stationBar, { backgroundColor: dm.stationBg, borderBottomColor: dm.border }]}>
         <View style={styles.stationLeft}>
           <Text style={styles.stationIcon}>📍</Text>
           <View>
-            <Text style={styles.stationName}>{stationName}</Text>
-            <Text style={styles.stationLoc}>{location}</Text>
+            <Text style={[styles.stationName, { color: dm.text }]}>{stationName}</Text>
+            <Text style={[styles.stationLoc, { color: dm.sub }]}>{location}</Text>
           </View>
         </View>
       </View>
@@ -586,13 +590,13 @@ export default function CardDetail() {
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#2196F3" />
-          <Text style={styles.loadingTxt}>Chargement des prévisions…</Text>
+          <Text style={[styles.loadingTxt, { color: dm.sub }]}>{t('cardDetail.loading')}</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {renderChart()}
+          {!isBatteryCard && renderChart()}
           {renderDetails()}
-          {renderTableau()}
+          {!isBatteryCard && renderTableau()}
           <View style={{ height: 40 }} />
         </ScrollView>
       )}

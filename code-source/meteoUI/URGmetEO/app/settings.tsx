@@ -155,6 +155,9 @@ Merci.
           headerTintColor: darkMode ? "#ffffff" : "#000000",
           headerRight: () => (
             <View style={{ flexDirection: "row", gap: 15, marginRight: 4 }}>
+              <TouchableOpacity onPress={() => router.push("/alertes")} hitSlop={8}>
+                <Ionicons name="alert-circle-outline" size={22} color={darkMode ? "#ffffff" : "#000000"} />
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => router.push("/notifications")} hitSlop={8}>
                 <Ionicons name="notifications-outline" size={22} color={darkMode ? "#ffffff" : "#000000"} />
               </TouchableOpacity>
@@ -217,9 +220,9 @@ Merci.
         <Card darkMode={darkMode}>
           <View style={styles.row}>
             <View style={{ flex: 1, marginRight: 12 }}>
-              <Text style={[styles.label, { color: theme.text, fontWeight: "bold" }]}>Mode démo</Text>
+              <Text style={[styles.label, { color: theme.text, fontWeight: "bold" }]}>{t("demoModeLabel")}</Text>
               <Text style={{ color: theme.text, opacity: 0.55, fontSize: 12, marginTop: 2 }}>
-                {demoMode ? "Station de test active" : "Données temps réel (GPS)"}
+                {demoMode ? t("demoModeActive") : t("demoModeRealtime")}
               </Text>
             </View>
             <Switch
@@ -237,7 +240,7 @@ Merci.
           {demoMode && (
             <View style={{ marginTop: 14 }}>
               <Text style={[styles.demoSectionLabel, { color: theme.text }]}>
-                Choisir une station de test :
+                {t("demoChooseStation")}
               </Text>
 
               {loadingDemoStations ? (
@@ -252,7 +255,13 @@ Merci.
                   const dot =
                     temp == null ? "⚪" :
                     temp >= 38  ? "🔴" :
-                    temp >= 30  ? "🟠" : "🟢";
+                    temp >= 35  ? "🟠" : "🟢";
+
+                  const descKey =
+                    item.station.descKey ??
+                    (item.station.description === "Données normales"      ? "demoDataNormal"  :
+                     item.station.description === "Données d'avertissement" ? "demoDataWarning" :
+                     item.station.description === "Données critiques"      ? "demoDataCritical" : null);
 
                   return (
                     <TouchableOpacity
@@ -272,13 +281,13 @@ Merci.
                             {item.station.address ?? item.station.code}
                           </Text>
                           <Text style={{ color: theme.text, opacity: 0.55, fontSize: 12 }}>
-                            {item.station.description}
+                            {descKey ? t(descKey) : item.station.description}
                           </Text>
                           {item.data && (
                             <Text style={{ color: theme.accent, fontSize: 13, marginTop: 4, fontWeight: "600" }}>
                               {temp != null ? `${temp.toFixed(1)}°C` : "—"}
-                              {"  •  "}Vent {wind} km/h
-                              {"  •  "}Pluie {rain} mm
+                              {"  •  "}{t("demoWindLabel")} {wind} km/h
+                              {"  •  "}{t("demoRainLabel")} {rain} mm
                             </Text>
                           )}
                         </View>
@@ -298,7 +307,7 @@ Merci.
         <Card darkMode={darkMode}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>{t("language")}</Text>
           <SegmentedControl
-            options={["fr", "en"]}
+            options={["fr", "en", "ht"]}
             selected={language}
             onSelect={changeLanguage}
             darkMode={darkMode}

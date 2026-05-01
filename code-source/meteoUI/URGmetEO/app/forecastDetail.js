@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   ScrollView,
@@ -35,13 +36,13 @@ function windDir(deg) {
   return ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'][Math.round(deg / 45) % 8];
 }
 
-function uvLabel(idx) {
+function uvLabel(idx, t) {
   if (idx == null) return { text: '--', color: '#888' };
-  if (idx <= 2)  return { text: `${idx} Faible`,     color: '#4caf50' };
-  if (idx <= 5)  return { text: `${idx} Modéré`,     color: '#ff9800' };
-  if (idx <= 7)  return { text: `${idx} Élevé`,      color: '#f44336' };
-  if (idx <= 10) return { text: `${idx} Très élevé`, color: '#9c27b0' };
-  return            { text: `${idx} Extrême`,     color: '#7b1fa2' };
+  if (idx <= 2)  return { text: `${idx} ${t('forecastDetail.uvLow')}`,      color: '#4caf50' };
+  if (idx <= 5)  return { text: `${idx} ${t('forecastDetail.uvModerate')}`, color: '#ff9800' };
+  if (idx <= 7)  return { text: `${idx} ${t('forecastDetail.uvHigh')}`,     color: '#f44336' };
+  if (idx <= 10) return { text: `${idx} ${t('forecastDetail.uvVeryHigh')}`, color: '#9c27b0' };
+  return            { text: `${idx} ${t('forecastDetail.uvExtreme')}`,   color: '#7b1fa2' };
 }
 
 function fmtTime(isoStr) {
@@ -53,6 +54,7 @@ function fmtTime(isoStr) {
 
 // ── composant principal ───────────────────────────────────────────────────────
 export default function ForecastDetail() {
+  const { t } = useTranslation();
   const params = useLocalSearchParams();
   const router = useRouter();
 
@@ -66,7 +68,7 @@ export default function ForecastDetail() {
   const [selectedDay, setSelectedDay] = useState(0);
 
   useEffect(() => {
-    if (isNaN(lat) || isNaN(lon)) { setError('Coordonnées manquantes.'); setLoading(false); return; }
+    if (isNaN(lat) || isNaN(lon)) { setError(t('forecastDetail.coordsMissing')); setLoading(false); return; }
     fetchForecast();
   }, []);
 
@@ -76,7 +78,7 @@ export default function ForecastDetail() {
       const res = await apiClient.get('/api/geo/forecast', { params: { lat, lon } });
       setForecast(res.data);
     } catch (e) {
-      setError('Impossible de charger les prévisions.');
+      setError(t('forecastDetail.loadError'));
     } finally {
       setLoading(false);
     }
@@ -93,22 +95,22 @@ export default function ForecastDetail() {
     if (loading) return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#fff" />
-        <Text style={styles.loadingText}>Chargement des prévisions...</Text>
+        <Text style={styles.loadingText}>{t('forecastDetail.loading')}</Text>
       </View>
     );
 
     if (error || !forecast) return (
       <View style={styles.centered}>
-        <Text style={styles.errorText}>{error || 'Données indisponibles'}</Text>
+        <Text style={styles.errorText}>{error || t('forecastDetail.errorDefault')}</Text>
         <TouchableOpacity style={styles.retryBtn} onPress={fetchForecast}>
-          <Text style={styles.retryText}>Réessayer</Text>
+          <Text style={styles.retryText}>{t('forecastDetail.retry')}</Text>
         </TouchableOpacity>
       </View>
     );
 
     const day   = forecast.daily[selectedDay] || {};
     const slots = getSlots();
-    const uv    = uvLabel(day.uvIndexMax);
+    const uv    = uvLabel(day.uvIndexMax, t);
 
     const TRow = ({ label, alt, children }) => (
       <View style={[styles.tRow, alt && styles.tRowAlt]}>
@@ -126,7 +128,7 @@ export default function ForecastDetail() {
           style={styles.dayStrip} contentContainerStyle={styles.dayStripContent}>
           {forecast.daily.map((d, i) => {
             const dt    = new Date(d.date);
-            const label = i === 0 ? 'Auj.' : i === 1 ? 'Dem.' : `${DAY_FR[dt.getDay()]}.${dt.getDate()}`;
+            const label = i === 0 ? t('forecastDetail.today') : i === 1 ? t('forecastDetail.tomorrow') : `${DAY_FR[dt.getDay()]}.${dt.getDate()}`;
             const hasRain = (d.precipitation || 0) >= 0.5;
             return (
               <TouchableOpacity key={i}
@@ -138,7 +140,7 @@ export default function ForecastDetail() {
                 <Text style={styles.dayCardMin}>{d.tempMin != null ? `${Math.round(d.tempMin)}°` : '--'}</Text>
                 {hasRain
                   ? <Text style={styles.dayCardRainTxt}>💧{d.precipitation?.toFixed(1)}</Text>
-                  : <Text style={styles.dayCardSunTxt}>☀️ Sec</Text>
+                  : <Text style={styles.dayCardSunTxt}>☀️ {t('forecastDetail.dry')}</Text>
                 }
                 {d.rainProba != null && (
                   <Text style={styles.dayCardProba}>{d.rainProba}%</Text>
@@ -154,7 +156,7 @@ export default function ForecastDetail() {
             <Text style={styles.daySummaryEmoji}>{weatherEmoji(day.weathercode)}</Text>
             <View style={{ flex: 1, marginLeft: 14 }}>
               <Text style={styles.daySummaryDate}>
-                {selectedDay === 0 ? "Aujourd'hui" : selectedDay === 1 ? 'Demain'
+                {selectedDay === 0 ? t('forecastDetail.todayFull') : selectedDay === 1 ? t('forecastDetail.tomorrowFull')
                   : new Date(day.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
               </Text>
               <Text style={styles.daySummaryTemps}>
@@ -169,24 +171,24 @@ export default function ForecastDetail() {
             <View style={styles.dayMetaItem}>
               <Text style={styles.dayMetaIcon}>💧</Text>
               <Text style={styles.dayMetaVal}>{(day.precipitation || 0).toFixed(1)} mm</Text>
-              <Text style={styles.dayMetaLbl}>Précipitations</Text>
+              <Text style={styles.dayMetaLbl}>{t('forecastDetail.precip')}</Text>
             </View>
             {day.rainProba != null && (
               <View style={styles.dayMetaItem}>
                 <Text style={styles.dayMetaIcon}>🌂</Text>
                 <Text style={styles.dayMetaVal}>{day.rainProba}%</Text>
-                <Text style={styles.dayMetaLbl}>Probabilité pluie</Text>
+                <Text style={styles.dayMetaLbl}>{t('forecastDetail.rainProba')}</Text>
               </View>
             )}
             <View style={styles.dayMetaItem}>
               <Text style={styles.dayMetaIcon}>💨</Text>
               <Text style={styles.dayMetaVal}>{day.windSpeedMax != null ? `${Math.round(day.windSpeedMax)} km/h` : '--'}</Text>
-              <Text style={styles.dayMetaLbl}>Vent max</Text>
+              <Text style={styles.dayMetaLbl}>{t('forecastDetail.windMax')}</Text>
             </View>
             <View style={styles.dayMetaItem}>
               <Text style={styles.dayMetaIcon}>💧</Text>
               <Text style={styles.dayMetaVal}>{day.humidityMax != null ? `${day.humidityMax}%` : '--'}</Text>
-              <Text style={styles.dayMetaLbl}>Humidité max</Text>
+              <Text style={styles.dayMetaLbl}>{t('forecastDetail.humidMax')}</Text>
             </View>
           </View>
 
@@ -195,33 +197,33 @@ export default function ForecastDetail() {
             <View style={styles.sunItem}>
               <Text style={styles.sunIcon}>🌅</Text>
               <Text style={styles.sunVal}>{fmtTime(day.sunrise)}</Text>
-              <Text style={styles.sunLbl}>Lever</Text>
+              <Text style={styles.sunLbl}>{t('forecastDetail.sunrise')}</Text>
             </View>
             <View style={styles.sunItem}>
               <Text style={styles.sunIcon}>🌇</Text>
               <Text style={styles.sunVal}>{fmtTime(day.sunset)}</Text>
-              <Text style={styles.sunLbl}>Coucher</Text>
+              <Text style={styles.sunLbl}>{t('forecastDetail.sunset')}</Text>
             </View>
             <View style={styles.sunItem}>
               <Text style={styles.sunIcon}>☀️</Text>
               <Text style={[styles.sunVal, { color: uv.color }]}>{uv.text}</Text>
-              <Text style={styles.sunLbl}>UV max</Text>
+              <Text style={styles.sunLbl}>{t('forecastDetail.uvMax')}</Text>
             </View>
             <View style={styles.sunItem}>
               <Text style={styles.sunIcon}>🌬️</Text>
               <Text style={styles.sunVal}>{windDir(day.windDirDominant)}</Text>
-              <Text style={styles.sunLbl}>Dir. vent</Text>
+              <Text style={styles.sunLbl}>{t('forecastDetail.windDir')}</Text>
             </View>
           </View>
         </View>
 
         {/* ── Tableau horaire ── */}
-        <Text style={styles.sectionTitle}>Détail par créneaux</Text>
+        <Text style={styles.sectionTitle}>{t('forecastDetail.slotDetail')}</Text>
 
         {/* en-tête */}
         <View style={[styles.tRow, styles.tHead]}>
           <View style={styles.tLabel} />
-          {SLOT_LBL.map(l => (
+          {[t('forecastDetail.slotMorning'), t('forecastDetail.slotMidday'), t('forecastDetail.slotEvening'), t('forecastDetail.slotNight')].map(l => (
             <View key={l} style={styles.tCol}>
               <Text style={styles.tHeadTxt}>{l}</Text>
             </View>
@@ -238,11 +240,11 @@ export default function ForecastDetail() {
           ))}
         </TRow>
 
-        <TRow label="Ressenti" alt>
+        <TRow label={t('forecastDetail.rowFeelsLike')} alt>
           {slots.map((s, i) => <TCol key={i}><Text style={styles.slotVal}>{s.feelsLike != null ? `${Math.round(s.feelsLike)}°` : '--'}</Text></TCol>)}
         </TRow>
 
-        <TRow label={'Vent\nkm/h'}>
+        <TRow label={t('forecastDetail.rowWind')}>
           {slots.map((s, i) => (
             <TCol key={i}>
               <Text style={styles.slotVal}>{s.windSpeed != null ? Math.round(s.windSpeed) : '--'}</Text>
@@ -251,19 +253,19 @@ export default function ForecastDetail() {
           ))}
         </TRow>
 
-        <TRow label="Rafales" alt>
+        <TRow label={t('forecastDetail.rowGusts')} alt>
           {slots.map((s, i) => <TCol key={i}><Text style={styles.slotVal}>{s.windGusts != null ? Math.round(s.windGusts) : '--'}</Text></TCol>)}
         </TRow>
 
-        <TRow label="Humidité">
+        <TRow label={t('forecastDetail.rowHumidity')}>
           {slots.map((s, i) => <TCol key={i}><Text style={styles.slotVal}>{s.humidity != null ? `${s.humidity}%` : '--'}</Text></TCol>)}
         </TRow>
 
-        <TRow label={'Pression\nhPa'} alt>
+        <TRow label={t('forecastDetail.rowPressure')} alt>
           {slots.map((s, i) => <TCol key={i}><Text style={styles.slotVal}>{s.pressure != null ? Math.round(s.pressure) : '--'}</Text></TCol>)}
         </TRow>
 
-        <TRow label={'Précip.\nmm'}>
+        <TRow label={t('forecastDetail.rowPrecip')}>
           {slots.map((s, i) => (
             <TCol key={i}>
               <Text style={[styles.slotVal, { color: (s.precipitation || 0) >= 0.1 ? '#5ac8fa' : '#555' }]}>
@@ -273,7 +275,7 @@ export default function ForecastDetail() {
           ))}
         </TRow>
 
-        <TRow label={'Proba\npluie'} alt>
+        <TRow label={t('forecastDetail.rowRainProba')} alt>
           {slots.map((s, i) => (
             <TCol key={i}>
               <Text style={[styles.slotVal, { color: (s.rainProba || 0) >= 40 ? '#5ac8fa' : '#555' }]}>
@@ -283,9 +285,9 @@ export default function ForecastDetail() {
           ))}
         </TRow>
 
-        <TRow label="UV">
+        <TRow label={t('forecastDetail.rowUV')}>
           {slots.map((s, i) => {
-            const u = uvLabel(s.uvIndex);
+            const u = uvLabel(s.uvIndex, t);
             return <TCol key={i}><Text style={[styles.slotVal, { color: u.color }]}>{u.text}</Text></TCol>;
           })}
         </TRow>
@@ -301,7 +303,7 @@ export default function ForecastDetail() {
           <Text style={styles.backArrow}>‹</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Prévisions 10 jours</Text>
+          <Text style={styles.headerTitle}>{t('forecastDetail.title')}</Text>
           <Text style={styles.headerCity} numberOfLines={1}>{city}</Text>
         </View>
         <View style={styles.backBtn} />

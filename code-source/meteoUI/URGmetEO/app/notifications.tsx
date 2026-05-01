@@ -10,12 +10,10 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
-  Linking,
-  Platform,
 } from "react-native";
 import { Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import * as Notifications from "expo-notifications";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../context/SettingsContext";
 import type { NotificationPrefs, NotificationItem } from "../context/SettingsContext";
 import {
@@ -30,55 +28,57 @@ import {
 
 type NotifKey = keyof NotificationPrefs;
 
-const ITEMS: {
+function getItems(t: (key: string) => string): {
   key: NotifKey;
   icon: string;
   title: string;
   desc: string;
   isWeekly?: boolean;
   weeklyLabel?: string;
-}[] = [
-  {
-    key: "forecastToday",
-    icon: "🌤️",
-    title: "Météo du jour",
-    desc: "Rappel météo chaque matin pour bien commencer la journée",
-  },
-  {
-    key: "forecastTomorrow",
-    icon: "📅",
-    title: "Prévisions de demain",
-    desc: "Résumé des prévisions chaque soir avant de dormir",
-  },
-  {
-    key: "forecastWeekend",
-    icon: "🏖️",
-    title: "Météo du week-end",
-    desc: "Prévisions week-end pour planifier vos sorties",
-    isWeekly: true,
-    weeklyLabel: "Ven.",
-  },
-  {
-    key: "forecastWeek",
-    icon: "📆",
-    title: "Météo de la semaine",
-    desc: "Résumé hebdomadaire pour toute la semaine",
-    isWeekly: true,
-    weeklyLabel: "Lun.",
-  },
-  {
-    key: "rainNearby",
-    icon: "🌧️",
-    title: "Pluie à proximité",
-    desc: "Alerte lorsque des précipitations approchent de votre zone",
-  },
-  {
-    key: "alerts",
-    icon: "⚠️",
-    title: "Alertes météo",
-    desc: "Avertissements cyclones, orages violents et inondations",
-  },
-];
+}[] {
+  return [
+    {
+      key: "forecastToday",
+      icon: "🌤️",
+      title: t("notif.forecastTodayTitle"),
+      desc: t("notif.forecastTodayDesc"),
+    },
+    {
+      key: "forecastTomorrow",
+      icon: "📅",
+      title: t("notif.forecastTomorrowTitle"),
+      desc: t("notif.forecastTomorrowDesc"),
+    },
+    {
+      key: "forecastWeekend",
+      icon: "🏖️",
+      title: t("notif.forecastWeekendTitle"),
+      desc: t("notif.forecastWeekendDesc"),
+      isWeekly: true,
+      weeklyLabel: t("notif.forecastWeekendDay"),
+    },
+    {
+      key: "forecastWeek",
+      icon: "📆",
+      title: t("notif.forecastWeekTitle"),
+      desc: t("notif.forecastWeekDesc"),
+      isWeekly: true,
+      weeklyLabel: t("notif.forecastWeekDay"),
+    },
+    {
+      key: "rainNearby",
+      icon: "🌧️",
+      title: t("notif.rainNearbyTitle"),
+      desc: t("notif.rainNearbyDesc"),
+    },
+    {
+      key: "alerts",
+      icon: "⚠️",
+      title: t("notif.alertsTitle"),
+      desc: t("notif.alertsDesc"),
+    },
+  ];
+}
 
 // ─── Utilitaires ─────────────────────────────────────────────────────────────
 
@@ -92,11 +92,19 @@ function isTimePast(hour: number, minute: number): boolean {
   return now.getHours() > hour || (now.getHours() === hour && now.getMinutes() >= minute);
 }
 
-function formatTime(item: NotificationItem, enabled: boolean, isWeekly?: boolean, weeklyLabel?: string) {
-  const t = `${pad(item.hour)}:${pad(item.minute)}`;
-  if (isWeekly) return `${weeklyLabel} ${t}`;
-  if (!enabled) return `${t} / jour`;
-  return isTimePast(item.hour, item.minute) ? `${t} — demain` : `${t} — aujourd'hui`;
+function formatTime(
+  item: NotificationItem,
+  enabled: boolean,
+  tFn: (key: string) => string,
+  isWeekly?: boolean,
+  weeklyLabel?: string,
+) {
+  const timeStr = `${pad(item.hour)}:${pad(item.minute)}`;
+  if (isWeekly) return `${weeklyLabel} ${timeStr}`;
+  if (!enabled) return `${timeStr} ${tFn("notif.perDay")}`;
+  return isTimePast(item.hour, item.minute)
+    ? `${timeStr} — ${tFn("notif.tomorrow")}`
+    : `${timeStr} — ${tFn("notif.today")}`;
 }
 
 // ─── TimePicker modal ─────────────────────────────────────────────────────────
@@ -112,6 +120,7 @@ type TimePickerProps = {
 };
 
 function TimePicker({ visible, title, hour, minute, darkMode, onConfirm, onCancel }: TimePickerProps) {
+  const { t } = useTranslation();
   const [h, setH] = useState(hour);
   const [m, setM] = useState(minute);
 
@@ -156,7 +165,7 @@ function TimePicker({ visible, title, hour, minute, darkMode, onConfirm, onCance
 
             {/* Heure */}
             <View style={tpStyles.stepperCol}>
-              <Text style={[tpStyles.stepperLabel, { color: theme.sub }]}>Heure</Text>
+              <Text style={[tpStyles.stepperLabel, { color: theme.sub }]}>{t("notif.hourLabel")}</Text>
               <View style={tpStyles.stepperControls}>
                 <TouchableOpacity style={[tpStyles.stepBtn, { backgroundColor: theme.btn }]} onPress={() => changeH(1)}>
                   <Ionicons name="add" size={20} color="#4facfe" />
@@ -172,7 +181,7 @@ function TimePicker({ visible, title, hour, minute, darkMode, onConfirm, onCance
 
             {/* Minute */}
             <View style={tpStyles.stepperCol}>
-              <Text style={[tpStyles.stepperLabel, { color: theme.sub }]}>Minute</Text>
+              <Text style={[tpStyles.stepperLabel, { color: theme.sub }]}>{t("notif.minuteLabel")}</Text>
               <View style={tpStyles.stepperControls}>
                 <TouchableOpacity style={[tpStyles.stepBtn, { backgroundColor: theme.btn }]} onPress={() => changeM(1)}>
                   <Ionicons name="add" size={20} color="#4facfe" />
@@ -185,15 +194,15 @@ function TimePicker({ visible, title, hour, minute, darkMode, onConfirm, onCance
             </View>
           </View>
 
-          <Text style={[tpStyles.hint, { color: theme.sub }]}>Minutes de 0 à 59</Text>
+          <Text style={[tpStyles.hint, { color: theme.sub }]}>{t("notif.minutesHint")}</Text>
 
           {/* Actions */}
           <View style={[tpStyles.actions, { borderTopColor: theme.border }]}>
             <TouchableOpacity style={tpStyles.actionCancel} onPress={onCancel} activeOpacity={0.7}>
-              <Text style={[tpStyles.actionCancelText, { color: theme.sub }]}>Annuler</Text>
+              <Text style={[tpStyles.actionCancelText, { color: theme.sub }]}>{t("notif.cancelBtn")}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={tpStyles.actionConfirm} onPress={() => onConfirm(h, m)} activeOpacity={0.7}>
-              <Text style={tpStyles.actionConfirmText}>Confirmer</Text>
+              <Text style={tpStyles.actionConfirmText}>{t("notif.confirmBtn")}</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -205,11 +214,14 @@ function TimePicker({ visible, title, hour, minute, darkMode, onConfirm, onCance
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function NotificationsScreen() {
+  const { t } = useTranslation();
   const { darkMode, notifications, updateSettings } = useSettings();
   const [permStatus, setPermStatus] = useState<"granted" | "denied" | "undetermined" | null>(null);
   const [applying, setApplying] = useState(false);
   const [pickerKey, setPickerKey] = useState<NotifKey | null>(null);
   const [scheduledCount, setScheduledCount] = useState<number | null>(null);
+
+  const items = getItems(t);
 
   const theme = {
     bg:     darkMode ? "#0a0a0a" : "#f2f2f7",
@@ -232,8 +244,8 @@ export default function NotificationsScreen() {
       setScheduledCount(n);
     } catch (e: any) {
       Alert.alert(
-        "Erreur de planification",
-        `Impossible de planifier la notification.\n\n${e?.message ?? String(e)}`
+        t("notif.schedErrTitle"),
+        `${t("notif.schedErrMsg")}\n\n${e?.message ?? String(e)}`
       );
     } finally {
       setApplying(false);
@@ -277,8 +289,8 @@ export default function NotificationsScreen() {
     setPermStatus(granted ? "granted" : "denied");
     if (!granted) {
       Alert.alert(
-        "Permission refusée",
-        "Activez les notifications pour URGmetEO dans les paramètres de votre téléphone.",
+        t("notif.permDeniedAlertTitle"),
+        t("notif.permDeniedAlertMsg"),
         [{ text: "OK" }]
       );
     }
@@ -289,67 +301,30 @@ export default function NotificationsScreen() {
       const granted = await requestNotificationPermission();
       setPermStatus(granted ? "granted" : "denied");
       if (!granted) {
-        Alert.alert("Permission requise", "Activez les notifications dans les paramètres du téléphone.");
+        Alert.alert(t("notif.permRequiredAlertTitle"), t("notif.permRequiredAlertMsg"));
         return;
       }
     }
     try {
       await sendTestNotification();
-      Alert.alert("✅ Notification envoyée", "Elle devrait apparaître immédiatement.");
+      Alert.alert(t("notif.testSuccessTitle"), t("notif.testSuccessMsg"));
     } catch (e: any) {
       Alert.alert(
-        "Erreur notification",
-        `${e?.message ?? "Erreur inconnue"}\n\nVérifiez que les notifications sont autorisées dans les paramètres.`
+        t("notif.testErrTitle"),
+        `${e?.message ?? t("error")}\n\n${t("notif.testErrCheck")}`
       );
     }
   };
 
   const allEnabled = (Object.keys(notifications) as NotifKey[]).every(k => notifications[k].enabled);
 
-  const activeItem = pickerKey ? ITEMS.find(i => i.key === pickerKey) : null;
-
-  // Ouvrir les paramètres "Alarmes et rappels" Android
-  const handleOpenAlarmSettings = () => {
-    if (Platform.OS === 'android') {
-      Linking.sendIntent('android.settings.REQUEST_SCHEDULE_EXACT_ALARM').catch(() => {
-        Linking.openSettings();
-      });
-    } else {
-      Linking.openSettings();
-    }
-  };
-
-  // Diagnostic : affiche la liste réelle des notifications planifiées avec leurs heures
-  const handleDiagnostic = async () => {
-    const list = await Notifications.getAllScheduledNotificationsAsync();
-    if (list.length === 0) {
-      Alert.alert(
-        "0 notification planifiée",
-        "Aucune notification n'est enregistrée dans le système.\n\nActivez une notification et vérifiez à nouveau.",
-      );
-      return;
-    }
-    const lines = list.map(n => {
-      const trig = n.trigger as any;
-      let when = "";
-      if (trig?.type === "date" || trig?.value) {
-        const ms = trig.value ? trig.value * 1000 : null;
-        when = ms ? new Date(ms).toLocaleString("fr") : "date inconnue";
-      } else if (trig?.hour !== undefined) {
-        when = `${String(trig.hour).padStart(2,"0")}:${String(trig.minute).padStart(2,"0")} (quotidien)`;
-      } else {
-        when = JSON.stringify(trig).slice(0, 60);
-      }
-      return `• ${n.content.title}\n  → ${when}`;
-    });
-    Alert.alert(`✅ ${list.length} planifiée(s)`, lines.join("\n\n"));
-  };
+  const activeItem = pickerKey ? items.find(i => i.key === pickerKey) : null;
 
   return (
     <>
       <Stack.Screen
         options={{
-          title: "Notifications",
+          title: t("notif.screenTitle"),
           headerStyle: { backgroundColor: darkMode ? "#1c1c1e" : "#ffffff" },
           headerTintColor: darkMode ? "#ffffff" : "#000000",
         }}
@@ -362,7 +337,7 @@ export default function NotificationsScreen() {
           <View style={[styles.permBanner, styles.permGranted]}>
             <Ionicons name="checkmark-circle" size={20} color="#34c759" />
             <Text style={[styles.permTitle, { color: "#34c759", marginLeft: 10 }]}>
-              Notifications activées
+              {t("notif.permGranted")}
             </Text>
           </View>
         ) : (
@@ -378,32 +353,10 @@ export default function NotificationsScreen() {
             />
             <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={[styles.permTitle, { color: permStatus === "denied" ? "#ff3b30" : "#ff9f0a" }]}>
-                {permStatus === "denied" ? "Notifications désactivées" : "Activer les notifications"}
+                {permStatus === "denied" ? t("notif.permDenied") : t("notif.permPending")}
               </Text>
               <Text style={[styles.permSub, { color: theme.sub }]}>
-                {permStatus === "denied"
-                  ? "Allez dans les réglages du téléphone pour les activer"
-                  : "Appuyez ici pour autoriser les notifications URGmetEO"}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={theme.sub} />
-          </TouchableOpacity>
-        )}
-
-        {/* ── Bannière alarmes exactes (Android) ── */}
-        {Platform.OS === 'android' && (
-          <TouchableOpacity
-            style={[styles.permBanner, { backgroundColor: "rgba(255,159,10,0.12)", marginTop: 0 }]}
-            onPress={handleOpenAlarmSettings}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="alarm-outline" size={20} color="#ff9f0a" />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={[styles.permTitle, { color: "#ff9f0a" }]}>
-                Activer "Alarmes et rappels"
-              </Text>
-              <Text style={[styles.permSub, { color: theme.sub }]}>
-                Requis sur Android 12+ pour que les notifications arrivent à l'heure exacte. Appuyez pour ouvrir les paramètres.
+                {permStatus === "denied" ? t("notif.permDeniedSub") : t("notif.permPendingSub")}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={theme.sub} />
@@ -430,36 +383,37 @@ export default function NotificationsScreen() {
               style={{ marginRight: 6 }}
             />
             <Text style={[styles.quickBtnText, { color: allEnabled ? "#4facfe" : theme.sub }]}>
-              {allEnabled ? "Tout désactiver" : "Tout activer"}
+              {allEnabled ? t("notif.disableAll") : t("notif.enableAll")}
             </Text>
           </TouchableOpacity>
           {applying && <ActivityIndicator size="small" color="#4facfe" style={{ marginLeft: 12 }} />}
           {!applying && scheduledCount !== null && (
             <Text style={[styles.scheduledBadge, { color: scheduledCount > 0 ? "#34c759" : theme.sub }]}>
-              {scheduledCount > 0 ? `✓ ${scheduledCount} planifiée(s)` : "Aucune planifiée"}
+              {scheduledCount > 0
+                ? t("notif.scheduledBadge", { count: scheduledCount })
+                : t("notif.noneScheduled")}
             </Text>
           )}
         </View>
 
         {/* ── Liste des notifications ── */}
         <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
-          {ITEMS.map((item, idx) => {
+          {items.map((item, idx) => {
             const notif = notifications[item.key];
-            const timeLabel = formatTime(notif, notif.enabled, item.isWeekly, item.weeklyLabel);
+            const timeLabel = formatTime(notif, notif.enabled, t, item.isWeekly, item.weeklyLabel);
             return (
               <View
                 key={item.key}
                 style={[
                   styles.itemRow,
                   { borderBottomColor: theme.border },
-                  idx === ITEMS.length - 1 && { borderBottomWidth: 0 },
+                  idx === items.length - 1 && { borderBottomWidth: 0 },
                 ]}
               >
                 <Text style={styles.itemIcon}>{item.icon}</Text>
                 <View style={styles.itemBody}>
                   <Text style={[styles.itemTitle, { color: theme.text }]}>{item.title}</Text>
                   <Text style={[styles.itemDesc, { color: theme.sub }]}>{item.desc}</Text>
-                  {/* Time badge — tappable to open picker */}
                   <TouchableOpacity
                     style={styles.itemTimePill}
                     onPress={() => setPickerKey(item.key)}
@@ -489,44 +443,12 @@ export default function NotificationsScreen() {
           activeOpacity={0.7}
         >
           <Ionicons name="notifications" size={18} color="#4facfe" />
-          <Text style={styles.testBtnText}>Tester une notification</Text>
-        </TouchableOpacity>
-
-        {/* ── Test planifié 30s ── */}
-        <TouchableOpacity
-          style={[styles.testBtn, { marginTop: 6, borderColor: "rgba(255,159,10,0.4)", backgroundColor: "rgba(255,159,10,0.08)" }]}
-          onPress={async () => {
-            try {
-              await sendDelayedTestNotification(30);
-              Alert.alert("⏱️ Test planifié", "Une notification arrivera dans 30 secondes.\nMets l'app en arrière-plan et attends.");
-            } catch (e: any) {
-              Alert.alert("Erreur", e?.message ?? String(e));
-            }
-          }}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="timer-outline" size={18} color="#ff9f0a" />
-          <Text style={[styles.testBtnText, { color: "#ff9f0a" }]}>Test planifié (30 secondes)</Text>
-        </TouchableOpacity>
-
-        {/* ── Diagnostic ── */}
-        <TouchableOpacity
-          style={[styles.testBtn, { marginTop: 6, borderColor: "rgba(52,199,89,0.4)", backgroundColor: "rgba(52,199,89,0.08)" }]}
-          onPress={handleDiagnostic}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="list-outline" size={18} color="#34c759" />
-          <Text style={[styles.testBtnText, { color: "#34c759" }]}>Vérifier les planifications</Text>
+          <Text style={styles.testBtnText}>{t("notif.testBtn")}</Text>
         </TouchableOpacity>
 
         {/* ── Info ── */}
         <View style={[styles.infoBox, { borderColor: theme.border }]}>
-          <Text style={[styles.infoText, { color: theme.sub }]}>
-            💡 <Text style={{ fontWeight: "700", color: "#ff9f0a" }}>Important :</Text> si l'heure choisie est déjà passée aujourd'hui,
-            la notification s'affichera <Text style={{ fontWeight: "600" }}>demain</Text> à cette heure.
-            Le badge indique "aujourd'hui" ou "demain" en temps réel.{"\n\n"}
-            Appuyez sur l'heure pour la modifier. Les notifications sont planifiées localement.
-          </Text>
+          <Text style={[styles.infoText, { color: theme.sub }]}>{t("notif.infoText")}</Text>
         </View>
 
         <View style={{ height: 40 }} />
@@ -536,7 +458,7 @@ export default function NotificationsScreen() {
       {pickerKey && (
         <TimePicker
           visible={!!pickerKey}
-          title={activeItem?.title ?? "Heure de notification"}
+          title={activeItem?.title ?? t("notif.defaultPickerTitle")}
           hour={notifications[pickerKey].hour}
           minute={notifications[pickerKey].minute}
           darkMode={darkMode}

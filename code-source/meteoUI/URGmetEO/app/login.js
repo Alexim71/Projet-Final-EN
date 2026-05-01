@@ -15,11 +15,13 @@ import {
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';
 import { apiClient } from './api';
+import { useTranslation } from 'react-i18next';
 
 export default function Login() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { login } = useAuth();
+  const { t } = useTranslation();
 
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'confirm' | 'done'
   const [email, setEmail] = useState('');
@@ -28,6 +30,7 @@ export default function Login() {
   const [confirmCode, setConfirmCode] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   const navigateHome = () => {
     router.replace({
@@ -146,9 +149,9 @@ export default function Login() {
         <View style={styles.header}>
           <Text style={styles.appName}>URGmetEO</Text>
           <Text style={styles.tagline}>
-            {mode === 'login'   ? 'Connectez-vous à votre compte'
-           : mode === 'register' ? 'Créer un compte'
-           : mode === 'confirm'  ? 'Vérification du code'
+            {mode === 'login'    ? t('login.welcome')
+           : mode === 'register' ? t('login.createTitle')
+           : mode === 'confirm'  ? t('login.verifyTitle')
            : ''}
           </Text>
         </View>
@@ -157,10 +160,10 @@ export default function Login() {
         <View style={styles.card}>
           {mode === 'login' && (
             <>
-              <Text style={styles.cardTitle}>Connexion</Text>
+              <Text style={styles.cardTitle}>{t('login.welcome')}</Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Adresse email</Text>
+                <Text style={styles.label}>{t('login.emailLabel')}</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="email@exemple.com"
@@ -174,11 +177,11 @@ export default function Login() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Mot de passe</Text>
+                <Text style={styles.label}>{t('login.passwordLabel')}</Text>
                 <View style={styles.passwordRow}>
                   <TextInput
                     style={styles.passwordInput}
-                    placeholder="Mot de passe"
+                    placeholder={t('login.passwordLabel')}
                     placeholderTextColor="#aaa"
                     value={password}
                     onChangeText={setPassword}
@@ -202,7 +205,7 @@ export default function Login() {
               >
                 {loading
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.primaryButtonText}>Se connecter</Text>
+                  : <Text style={styles.primaryButtonText}>{t('login.loginBtn')}</Text>
                 }
               </TouchableOpacity>
 
@@ -216,24 +219,22 @@ export default function Login() {
                 style={styles.secondaryButton}
                 onPress={() => { setMode('register'); setPassword(''); }}
               >
-                <Text style={styles.secondaryButtonText}>Créer un compte</Text>
+                <Text style={styles.secondaryButtonText}>{t('login.noAccount')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-                <Text style={styles.skipText}>Continuer sans connexion</Text>
+                <Text style={styles.skipText}>{t('login.continueWithout')}</Text>
               </TouchableOpacity>
             </>
           )}
 
           {mode === 'register' && (
             <>
-              <Text style={styles.cardTitle}>Créer un compte</Text>
-              <Text style={styles.cardSubtitle}>
-                Saisissez votre email. Un code à 6 chiffres vous sera envoyé.
-              </Text>
+              <Text style={styles.cardTitle}>{t('login.createTitle')}</Text>
+              <Text style={styles.cardSubtitle}>{t('login.createSubtitle')}</Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Adresse email</Text>
+                <Text style={styles.label}>{t('login.emailLabel')}</Text>
                 <TextInput
                   style={styles.input}
                   placeholder="email@exemple.com"
@@ -247,13 +248,32 @@ export default function Login() {
               </View>
 
               <TouchableOpacity
-                style={[styles.primaryButton, loading && styles.buttonDisabled]}
+                style={styles.privacyRow}
+                onPress={() => setPrivacyAccepted(v => !v)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}>
+                  {privacyAccepted && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+                <Text style={styles.privacyText}>
+                  {t('login.privacyAccept')}{' '}
+                  <Text
+                    style={styles.privacyLink}
+                    onPress={() => router.push('/privacy')}
+                  >
+                    {t('login.privacyLink')}
+                  </Text>
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.primaryButton, (loading || !privacyAccepted) && styles.buttonDisabled]}
                 onPress={handleRegister}
-                disabled={loading}
+                disabled={loading || !privacyAccepted}
               >
                 {loading
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.primaryButtonText}>Continuer</Text>
+                  : <Text style={styles.primaryButtonText}>{t('login.continueBtn')}</Text>
                 }
               </TouchableOpacity>
 
@@ -261,21 +281,21 @@ export default function Login() {
                 style={styles.secondaryButton}
                 onPress={() => setMode('login')}
               >
-                <Text style={styles.secondaryButtonText}>Déjà un compte ? Se connecter</Text>
+                <Text style={styles.secondaryButtonText}>{t('login.alreadyAccount')}</Text>
               </TouchableOpacity>
             </>
           )}
 
           {mode === 'confirm' && (
             <>
-              <Text style={styles.cardTitle}>Vérifier votre email</Text>
+              <Text style={styles.cardTitle}>{t('login.verifyTitle')}</Text>
               <Text style={styles.cardSubtitle}>
-                Un code à 6 chiffres a été envoyé à{' '}
+                {t('login.codeSentTo')}{' '}
                 <Text style={styles.emailHighlight}>{email}</Text>.
               </Text>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Code de confirmation</Text>
+                <Text style={styles.label}>{t('login.codeLabel')}</Text>
                 <TextInput
                   style={[styles.input, { textAlign: 'center', fontSize: 24, letterSpacing: 8, fontWeight: 'bold' }]}
                   placeholder="000000"
@@ -289,7 +309,7 @@ export default function Login() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Choisir un mot de passe</Text>
+                <Text style={styles.label}>{t('login.newPassLabel')}</Text>
                 <View style={styles.passwordRow}>
                   <TextInput
                     style={styles.passwordInput}
@@ -311,10 +331,10 @@ export default function Login() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Confirmer le mot de passe</Text>
+                <Text style={styles.label}>{t('login.confirmPassLabel')}</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Répéter le mot de passe"
+                  placeholder={t('login.confirmPassLabel')}
                   placeholderTextColor="#aaa"
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
@@ -331,7 +351,7 @@ export default function Login() {
               >
                 {loading
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.primaryButtonText}>Confirmer mon compte</Text>
+                  : <Text style={styles.primaryButtonText}>{t('login.createBtn')}</Text>
                 }
               </TouchableOpacity>
 
@@ -347,16 +367,13 @@ export default function Login() {
           {mode === 'done' && (
             <View style={styles.successContainer}>
               <Text style={styles.successIcon}>✅</Text>
-              <Text style={styles.cardTitle}>Compte activé !</Text>
-              <Text style={styles.cardSubtitle}>
-                Votre compte a été créé avec succès.{'\n'}
-                Connectez-vous maintenant.
-              </Text>
+              <Text style={styles.cardTitle}>{t('login.successTitle')}</Text>
+              <Text style={styles.cardSubtitle}>{t('login.successMsg')}</Text>
               <TouchableOpacity
                 style={styles.primaryButton}
                 onPress={() => { setMode('login'); setPassword(''); setConfirmCode(''); setConfirmPassword(''); }}
               >
-                <Text style={styles.primaryButtonText}>Se connecter</Text>
+                <Text style={styles.primaryButtonText}>{t('login.loginBtn')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -474,6 +491,39 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  privacyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 10,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#4facfe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#4facfe',
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  privacyText: {
+    flex: 1,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
+    lineHeight: 18,
+  },
+  privacyLink: {
+    color: '#4facfe',
+    textDecorationLine: 'underline',
   },
   primaryButtonText: {
     color: '#fff',

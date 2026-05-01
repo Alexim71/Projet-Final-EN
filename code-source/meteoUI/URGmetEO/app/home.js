@@ -20,6 +20,8 @@ import { convertTemperature, convertWindSpeed, convertPressure } from "./utils/c
 import { useSettings } from "../context/SettingsContext";
 import { useAuth } from "../context/AuthContext";
 import { applyNotificationPrefs } from "./services/notificationService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 250;
@@ -38,19 +40,19 @@ const DAY_NAMES = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
 const LUNAR_CYCLE = 29.530588853;
 const KNOWN_NEW_MOON = new Date('2000-01-06T18:14:00Z');
 
-function getMoonPhase(date = new Date()) {
+function getMoonPhase(t, date = new Date()) {
   const elapsed  = (date - KNOWN_NEW_MOON) / 86400000;
   const cyclePos = ((elapsed % LUNAR_CYCLE) + LUNAR_CYCLE) % LUNAR_CYCLE;
   const illum    = Math.round(50 * (1 - Math.cos(2 * Math.PI * cyclePos / LUNAR_CYCLE)));
   let phase, emoji;
-  if      (cyclePos <  1.85) { phase = 'Nouvelle Lune';        emoji = '🌑'; }
-  else if (cyclePos <  7.38) { phase = 'Premier Croissant';    emoji = '🌒'; }
-  else if (cyclePos <  9.22) { phase = 'Premier Quartier';     emoji = '🌓'; }
-  else if (cyclePos < 14.77) { phase = 'Gibbeux Croissant';    emoji = '🌔'; }
-  else if (cyclePos < 16.61) { phase = 'Pleine Lune';          emoji = '🌕'; }
-  else if (cyclePos < 22.15) { phase = 'Gibbeux Décroissant';  emoji = '🌖'; }
-  else if (cyclePos < 23.99) { phase = 'Dernier Quartier';     emoji = '🌗'; }
-  else                        { phase = 'Dernier Croissant';   emoji = '🌘'; }
+  if      (cyclePos <  1.85) { phase = t('home.moonNew');              emoji = '🌑'; }
+  else if (cyclePos <  7.38) { phase = t('home.moonWaxingCrescent');   emoji = '🌒'; }
+  else if (cyclePos <  9.22) { phase = t('home.moonFirstQuarter');     emoji = '🌓'; }
+  else if (cyclePos < 14.77) { phase = t('home.moonWaxingGibbous');    emoji = '🌔'; }
+  else if (cyclePos < 16.61) { phase = t('home.moonFull');             emoji = '🌕'; }
+  else if (cyclePos < 22.15) { phase = t('home.moonWaningGibbous');    emoji = '🌖'; }
+  else if (cyclePos < 23.99) { phase = t('home.moonLastQuarter');      emoji = '🌗'; }
+  else                        { phase = t('home.moonWaningCrescent');  emoji = '🌘'; }
   const daysToFull = cyclePos < 14.77
     ? Math.ceil(14.77 - cyclePos)
     : Math.ceil(LUNAR_CYCLE - cyclePos + 14.77);
@@ -87,30 +89,30 @@ const getCardinalDirection = (degrees) => {
   return directions[index % 16];
 };
 
-const getWindDescription = (speedKmh) => {
-  if (speedKmh < 5) return "Calme";
-  if (speedKmh < 20) return "Léger";
-  if (speedKmh < 40) return "Modéré";
-  if (speedKmh < 60) return "Fort";
-  return "Très fort";
+const getWindDescription = (speedKmh, t) => {
+  if (speedKmh < 5) return t('home.windCalm');
+  if (speedKmh < 20) return t('home.windLight');
+  if (speedKmh < 40) return t('home.windModerate');
+  if (speedKmh < 60) return t('home.windStrong');
+  return t('home.windVeryStrong');
 };
 
-const getUVDescription = (uvIndex) => {
-  if (uvIndex <= 2) return "Faible";
-  if (uvIndex <= 5) return "Modéré";
-  if (uvIndex <= 7) return "Élevé";
-  if (uvIndex <= 10) return "Très élevé";
-  return "Extrême";
+const getUVDescription = (uvIndex, t) => {
+  if (uvIndex <= 2) return t('home.uvLow');
+  if (uvIndex <= 5) return t('home.uvModerate');
+  if (uvIndex <= 7) return t('home.uvHigh');
+  if (uvIndex <= 10) return t('home.uvVeryHigh');
+  return t('home.uvExtreme');
 };
 
-const getWeatherDescription = (data) => {
-  if (!data) return "Ensoleillé";
+const getWeatherDescription = (data, t) => {
+  if (!data) return t('home.weatherSunny');
   const { temperature, humidity, rainfall } = data;
-  if (rainfall > 0) return "Pluvieux";
-  if (humidity > 80) return "Humide";
-  if (temperature > 30) return "Chaud";
-  if (temperature < 15) return "Frais";
-  return "Ensoleillé";
+  if (rainfall > 0) return t('home.weatherRainy');
+  if (humidity > 80) return t('home.weatherHumid');
+  if (temperature > 30) return t('home.weatherHot');
+  if (temperature < 15) return t('home.weatherFresh');
+  return t('home.weatherSunny');
 };
 
 const getWeatherEmoji = (data) => {
@@ -127,7 +129,7 @@ const getWeatherEmoji = (data) => {
   return '⛅';
 };
 
-const WindSpeedIndicator = ({ speed = 0, direction = 0, unit = "km/h" }) => {
+const WindSpeedIndicator = ({ speed = 0, direction = 0, unit = "km/h", t }) => {
 
   const safeSpeed = speed || 0;
   const safeDirection = direction || 0;
@@ -176,7 +178,7 @@ const WindSpeedIndicator = ({ speed = 0, direction = 0, unit = "km/h" }) => {
         </Text>
         <Text style={styles.windDirectionText}>{directionCardinal}</Text>
         <Text style={styles.windDescription}>
-          {getWindDescription(safeSpeed)}
+          {getWindDescription(safeSpeed, t)}
         </Text>
       </View>
     </View>
@@ -217,8 +219,11 @@ export default function Home() {
   
 const [searchSuggestions, setSearchSuggestions] = useState([]);
 const [showSuggestions, setShowSuggestions] = useState(false);
+const [criticalSensors, setCriticalSensors] = useState([]);
+const [alertDismissed, setAlertDismissed] = useState(false);
 
   //const theme = useTheme(); 
+const { t } = useTranslation();
 const { useCelsius, windUnit, pressureUnit, demoMode, demoStationCode, notifications } = useSettings();
 const { isLoggedIn, user, logout } = useAuth();
 const wind = convertWindSpeed(weatherData?.wind_speed || 0, windUnit);
@@ -375,12 +380,13 @@ const safeToFixed = (value, digits = 1, defaultValue = 0) => {
               battery_level:   safeNumber(data.battery_level, 50),
             };
             setWeatherData(demoProcessed);
+            evaluateAlerts(demoProcessed);
             applyNotificationPrefs(
               notifications,
               {
                 temp:      `${convertTemperature(demoProcessed.temperature, useCelsius).toFixed(0)}°${useCelsius ? 'C' : 'F'}`,
                 city:      station.address || station.description || '',
-                condition: getWeatherDescription(demoProcessed),
+                condition: getWeatherDescription(demoProcessed, t),
               },
               {
                 lat:  currentLocation.lat,
@@ -439,13 +445,14 @@ const safeToFixed = (value, digits = 1, defaultValue = 0) => {
             battery_level: safeNumber(data.data.battery_level, 50),
           };
           setWeatherData(processedData);
+          evaluateAlerts(processedData);
           console.log("✅ Données météo mises à jour");
           applyNotificationPrefs(
             notifications,
             {
               temp:      `${convertTemperature(processedData.temperature, useCelsius).toFixed(0)}°${useCelsius ? 'C' : 'F'}`,
               city:      data.station?.address || data.station?.description || '',
-              condition: getWeatherDescription(processedData),
+              condition: getWeatherDescription(processedData, t),
             },
             {
               lat:  latitude,
@@ -550,6 +557,7 @@ const safeToFixed = (value, digits = 1, defaultValue = 0) => {
     };
   }, []);
 
+
   // 8. Vérifier la position actuelle
   const checkCurrentPosition = async () => {
     try {
@@ -653,23 +661,65 @@ const safeToFixed = (value, digits = 1, defaultValue = 0) => {
     }
   }, [params.lat, params.lon]);
 
-  const formatTimeSinceUpdate = (date) => {
-    if (!date) return "Jamais";
+  const formatTimeSinceUpdate = (date, t) => {
+    if (!date) return t('home.timeNever');
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
-    
-    if (diffMins === 0) return "À l'instant";
-    if (diffMins === 1) return "Il y a 1 minute";
-    if (diffMins < 60) return `Il y a ${diffMins} minutes`;
-    
+
+    if (diffMins === 0) return t('home.timeJustNow');
+    if (diffMins === 1) return t('home.time1min');
+    if (diffMins < 60) return t('home.timeMins', { count: diffMins });
+
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours === 1) return "Il y a 1 heure";
-    if (diffHours < 24) return `Il y a ${diffHours} heures`;
-    
+    if (diffHours === 1) return t('home.time1hour');
+    if (diffHours < 24) return t('home.timeHours', { count: diffHours });
+
     const diffDays = Math.floor(diffHours / 24);
-    if (diffDays === 1) return "Hier";
-    return `Il y a ${diffDays} jours`;
+    if (diffDays === 1) return t('home.time1day');
+    return t('home.timeDays', { count: diffDays });
+  };
+
+  // Évaluer les alertes à partir des données météo reçues
+  const evaluateAlerts = async (data) => {
+    try {
+      const windKmh = (data.wind_speed || 0) * 3.6;
+      const sensorValues = {
+        temperature: data.temperature ?? null,
+        humidity:    data.humidity    ?? null,
+        pressure:    data.pressure    ?? null,
+        wind:        windKmh,
+        rain:        data.rainfall    ?? null,
+      };
+      await AsyncStorage.setItem('last_weather_sensor', JSON.stringify({ ...sensorValues, timestamp: Date.now() }));
+
+      const raw = await AsyncStorage.getItem('alert_thresholds_v1');
+      const saved = raw ? JSON.parse(raw) : [];
+
+      const SENSOR_DEFS = [
+        { id: 'temperature', emoji: '🌡️', label: 'Température', unit: '°C',   warnThreshold: 35,   critThreshold: 40,  direction: 'up'   },
+        { id: 'humidity',    emoji: '💧', label: 'Humidité',    unit: '%',    warnThreshold: 80,   critThreshold: 95,  direction: 'up'   },
+        { id: 'pressure',   emoji: '🌀', label: 'Pression',    unit: 'hPa',  warnThreshold: 1000, critThreshold: 990, direction: 'down' },
+        { id: 'wind',       emoji: '🌬️', label: 'Vent',        unit: 'km/h', warnThreshold: 50,   critThreshold: 90,  direction: 'up'   },
+        { id: 'rain',       emoji: '🌧️', label: 'Pluie',       unit: 'mm/h', warnThreshold: 20,   critThreshold: 50,  direction: 'up'   },
+      ];
+
+      const configs = SENSOR_DEFS.map(def => {
+        const s = saved.find(t => t.id === def.id);
+        return s ? { ...def, warnThreshold: s.warnThreshold, critThreshold: s.critThreshold } : def;
+      });
+
+      const critical = configs.filter(cfg => {
+        const val = sensorValues[cfg.id];
+        if (val === null || val === undefined) return false;
+        return cfg.direction === 'up' ? val >= cfg.critThreshold : val < cfg.critThreshold;
+      }).map(cfg => ({ ...cfg, value: parseFloat((sensorValues[cfg.id]).toFixed(1)) }));
+
+      setCriticalSensors(critical);
+      if (critical.length > 0) setAlertDismissed(false);
+    } catch (e) {
+      console.log('[Alerts] evaluateAlerts error:', e);
+    }
   };
 
   const setDemoData = () => {
@@ -692,6 +742,7 @@ const safeToFixed = (value, digits = 1, defaultValue = 0) => {
       wind_chill: 22 + Math.random() * 10
     };
     setWeatherData(demoData);
+    evaluateAlerts(demoData);
     setLastUpdate(new Date());
   };
 
@@ -699,10 +750,10 @@ const safeToFixed = (value, digits = 1, defaultValue = 0) => {
     if (isLoggedIn) {
       Alert.alert(
         user?.email ?? 'Compte',
-        'Que souhaitez-vous faire ?',
+        t('home.userMenu'),
         [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Se déconnecter', style: 'destructive', onPress: logout },
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('home.signOut'), style: 'destructive', onPress: logout },
         ]
       );
     } else {
@@ -724,18 +775,18 @@ const safeToFixed = (value, digits = 1, defaultValue = 0) => {
     
     if (!searchResult.success || searchResult.results.length === 0) {
       Alert.alert(
-        'Aucun résultat',
-        `Aucune localité trouvée pour "${searchQuery}". Essayez avec un autre nom.`,
+        t('home.noResults'),
+        t('home.noResultsMsg', { query: searchQuery }),
         [{ text: 'OK' }]
       );
       return;
     }
-    
+
     // Si plusieurs résultats, montrer une sélection
     if (searchResult.results.length > 1) {
       Alert.alert(
-        'Plusieurs résultats',
-        'Choisissez une localité :',
+        t('home.multipleResults'),
+        t('home.chooseLocation'),
         searchResult.results.map((loc, index) => ({
           text: `${loc.name} (${loc.type})`,
           onPress: () => navigateToLocation(loc)
@@ -745,10 +796,10 @@ const safeToFixed = (value, digits = 1, defaultValue = 0) => {
       // Un seul résultat, naviguer directement
       navigateToLocation(searchResult.results[0]);
     }
-    
+
   } catch (error) {
     console.error('Erreur recherche:', error);
-    Alert.alert('Erreur', 'Impossible d\'effectuer la recherche');
+    Alert.alert(t('home.noResults'), t('home.searchError'));
   } finally {
     setLoading(false);
   }
@@ -777,8 +828,8 @@ const navigateToLocation = (location) => {
   
   // Optionnel: Afficher un message
   Alert.alert(
-    'Localisation mise à jour',
-    `Vous avez été redirigé vers ${location.name}`,
+    t('home.locationUpdated'),
+    t('home.redirectedTo', { name: location.name }),
     [{ text: 'OK' }]
   );
   };
@@ -812,29 +863,30 @@ const navigateToLocation = (location) => {
       if (location && location.coords) {
         handleNewLocation(location);
         Alert.alert(
-          "Position mise à jour",
-          "Votre position a été actualisée",
+          t('home.positionUpdated'),
+          t('home.positionUpdatedMsg'),
           [{ text: "OK" }]
         );
       }
     } catch (error) {
-      Alert.alert("Erreur", "Impossible d'obtenir votre position actuelle");
+      Alert.alert(t('home.noResults'), t('home.errorGetPosition'));
     }
   };
 const weatherCards = weatherData ? [
   [
      {
     id: 1,
-    title: "💨 Vent",
+    title: t('home.cardWind'),
     component: (
   <WindSpeedIndicator
     speed={wind}
     direction={weatherData.wind_direction || 0}
     unit={windUnit}
+    t={t}
   />
 ),
     subtitle: getWindDescription(
-      convertWindSpeed(weatherData.wind_speed || 0, windUnit)
+      convertWindSpeed(weatherData.wind_speed || 0, windUnit), t
     ),
     value: `${convertWindSpeed(
       weatherData.wind_speed || 0,
@@ -843,64 +895,64 @@ const weatherCards = weatherData ? [
   },
   {
     id: 2,
-    title: "💧 Humidité",
+    title: t('home.cardHumidity'),
     value: `${(weatherData.humidity || 0).toFixed(1)}%`,
     subtitle:
-      (weatherData.humidity || 0) > 70 ? "Élevée" : "Confortable"
+      (weatherData.humidity || 0) > 70 ? t('home.highHumidity') : t('home.comfortableHumidity')
   },
   {
     id: 3,
-    title: "📊 Pression",
+    title: t('home.cardPressure'),
     value: `${convertPressure(
       weatherData.pressure || 0,
       pressureUnit
     ).toFixed(1)} ${pressureUnit}`,
     subtitle:
-      (weatherData.pressure || 0) > 1013 ? "Haute" : "Normale"
+      (weatherData.pressure || 0) > 1013 ? t('home.highPressure') : t('home.normalPressure')
   }
 ],
 [
   {
     id: 4,
-    title: "☀️ UV",
+    title: t('home.cardUV'),
     value: (weatherData.uv_index || 0).toString(),
-    subtitle: getUVDescription(weatherData.uv_index || 0)
+    subtitle: getUVDescription(weatherData.uv_index || 0, t)
   },
   {
     id: 5,
-    title: "🌡️ Ressenti",
+    title: t('home.cardFeelsLike'),
     value: `${convertTemperature(
       weatherData.feels_like || 0,
       useCelsius
     ).toFixed(1)}°${useCelsius ? "C" : "F"}`,
-    subtitle: "Indice thermique"
+    subtitle: t('home.thermicIndex')
   },
   {
     id: 6,
-    title: "💧 Rosée",
+    title: t('home.cardDewPoint'),
     value: `${convertTemperature(
       weatherData.dew_point || 0,
       useCelsius
     ).toFixed(1)}°${useCelsius ? "C" : "F"}`,
-    subtitle: "Point de rosée"
+    subtitle: t('home.dewPointLabel')
   },
   {
     id: 7,
-    title: "☀️ Radiation",
+    title: t('home.cardSolar'),
     value: `${weatherData.solar_radiation || 0} W/m²`,
-    subtitle: "Solaire"
+    subtitle: t('home.solarLabel')
   },
   {
     id: 8,
-    title: "🔋 Batterie",
+    title: t('home.cardBattery'),
     value: `${weatherData.battery_level || 0}%`,
-    subtitle: "Niveau batterie"
+    subtitle: t('home.batteryLabel')
   },
   (() => {
-    const moon = getMoonPhase();
+    const moon = getMoonPhase(t);
     return {
       id: 9,
-      title: "🌙 Lune",
+      title: t('home.cardMoon'),
       value: `${moon.emoji}  ${moon.illum}%`,
       subtitle: moon.phase,
     };
@@ -912,7 +964,7 @@ const weatherCards = weatherData ? [
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color="#ffffff" />
-        <Text style={styles.loadingText}>Initialisation...</Text>
+        <Text style={styles.loadingText}>{t('home.loading')}</Text>
         <Text style={styles.coords}>
             📍 {safeToFixed(currentLocation.lat, 4)}, {safeToFixed(currentLocation.lon, 4)}
         </Text>
@@ -920,54 +972,6 @@ const weatherCards = weatherData ? [
     );
   }
 
-
-  // Fonction pour vérifier s'il y a des alertes actives
-const hasActiveAlerts = () => {
-  if (!weatherData) return false;
-  
-  // Logique de détection d'alerte
-  const alerts = [];
-  
-  // Exemple: Alerte température élevée
-  if (weatherData.temperature > 35) {
-    alerts.push({ type: 'heat', level: 'high', message: 'Température élevée' });
-  }
-  
-  // Exemple: Alerte pluie forte
-  if (weatherData.rainfall > 20) {
-    alerts.push({ type: 'rain', level: 'high', message: 'Pluie forte' });
-  }
-  
-  // Exemple: Alerte vent fort
-  if ((weatherData.wind_speed || 0) * 3.6 > 50) {
-    alerts.push({ type: 'wind', level: 'high', message: 'Vent fort' });
-  }
-  
-  // Exemple: Alerte UV élevé
-  if ((weatherData.uv_index || 0) > 8) {
-    alerts.push({ type: 'uv', level: 'high', message: 'UV élevé' });
-  }
-  
-  return alerts.length > 0;
-};
-
-// Fonction pour afficher les détails des alertes
-const showAlertsDetails = () => {
-  Alert.alert(
-    "Alertes Météo",
-    "Conditions dangereuses détectées:\n\n" +
-    "• Température élevée (>35°C)\n" +
-    "• Vent fort (>50 km/h)\n" +
-    "• UV très élevé",
-    [
-      { text: "Fermer", style: "cancel" },
-      { 
-        text: "Voir détails", 
-        onPress: () => router.push('/alerts') 
-      }
-    ]
-  );
-};
 
   return (
     <View style={styles.container}>
@@ -1040,12 +1044,14 @@ const showAlertsDetails = () => {
       <View style={styles.headerActions}>
        
          {/* Settings Button */}
-    <TouchableOpacity 
-      style={styles.settingsButton} 
+    {isLoggedIn && (
+    <TouchableOpacity
+      style={styles.settingsButton}
       onPress={() => router.push('/settings')}
     >
       <Text style={styles.settingsIcon}>⚙️</Text>
     </TouchableOpacity>
+    )}
         <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
           <Text style={styles.loginText}>
             {isLoggedIn ? (user?.email?.split('@')[0] ?? '👤') : 'Login'}
@@ -1069,7 +1075,7 @@ const showAlertsDetails = () => {
       <View style={styles.searchBar}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Rechercher une ville, commune ou département..."
+          placeholder={t('home.searchPlaceholder')}
           placeholderTextColor="#ffffffb3"
           value={searchQuery}
           onChangeText={handleSearchInputChange}
@@ -1103,16 +1109,13 @@ const showAlertsDetails = () => {
       <View style={styles.updateInfoContainer}>
         {demoMode ? (
           <Text style={[styles.updateText, { color: '#ffd700', fontWeight: '700' }]}>
-            🧪 MODE DÉMO
+            {t('home.demoMode')}
             {stationData?.address ? ` — ${stationData.address}` : demoStationCode ? ` — ${demoStationCode}` : ''}
           </Text>
         ) : error ? (
           <Text style={styles.errorText}>{error}</Text>
         ) : (
-          <Text style={styles.updateText}>
-            Météo actuelle
-          
-          </Text>
+          <Text style={styles.updateText}>{t('home.currentWeather')}</Text>
         )}
         
         <View style={styles.refreshButtons}>
@@ -1152,14 +1155,41 @@ const showAlertsDetails = () => {
       >
 
         <View style={styles.headerSpacer} />
+
+        {/* ── Bannière alerte critique ── */}
+        {criticalSensors.length > 0 && !alertDismissed && (
+          <View style={styles.criticalBannerWrap}>
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              onPress={() => router.push('/alertes')}
+              activeOpacity={0.85}
+            >
+              <View style={styles.criticalBannerContent}>
+                <Text style={styles.criticalBannerTitle}>{t('home.criticalAlert')}</Text>
+                <Text style={styles.criticalBannerSub} numberOfLines={2}>
+                  {criticalSensors.map(s => `${s.emoji} ${s.label} : ${s.value} ${s.unit}`).join('  •  ')}
+                </Text>
+                <Text style={styles.criticalBannerTap}>{t('home.tapForDetails')}</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setAlertDismissed(true)}
+              hitSlop={12}
+              style={styles.criticalBannerX}
+            >
+              <Text style={styles.criticalBannerXText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <View style={styles.weatherCardsSection}>
 
           {/* ══ HÉROS : ville + température + condition ══ */}
           <View style={styles.heroSection}>
             <Text style={styles.heroCity}>
               {stationData
-                ? (stationData.address || stationData.description || 'Météo locale')
-                : 'Météo locale'}
+                ? (stationData.address || stationData.description || t('home.localWeather'))
+                : t('home.localWeather')}
             </Text>
             {stationData?.distance != null && (
               <Text style={styles.heroDistance}>📍 À {stationData.distance.toFixed(1)} km</Text>
@@ -1170,7 +1200,7 @@ const showAlertsDetails = () => {
                 ? `${convertTemperature(weatherData.temperature, useCelsius).toFixed(0)}°`
                 : '--°'}
             </Text>
-            <Text style={styles.heroConditionLabel}>{getWeatherDescription(weatherData)}</Text>
+            <Text style={styles.heroConditionLabel}>{getWeatherDescription(weatherData, t)}</Text>
 
             {weatherData && (
               <View style={styles.heroStatsRow}>
@@ -1178,30 +1208,25 @@ const showAlertsDetails = () => {
                   <Text style={styles.heroStatValue}>
                     {convertTemperature(weatherData.feels_like || 0, useCelsius).toFixed(0)}°
                   </Text>
-                  <Text style={styles.heroStatLabel}>Ressenti</Text>
+                  <Text style={styles.heroStatLabel}>{t('home.feelsLike')}</Text>
                 </View>
                 <View style={styles.heroStatDivider} />
                 <View style={styles.heroStatItem}>
                   <Text style={styles.heroStatValue}>{(weatherData.humidity || 0).toFixed(0)}%</Text>
-                  <Text style={styles.heroStatLabel}>Humidité</Text>
+                  <Text style={styles.heroStatLabel}>{t('home.humidity')}</Text>
                 </View>
                 <View style={styles.heroStatDivider} />
                 <View style={styles.heroStatItem}>
                   <Text style={styles.heroStatValue}>
                     {(weatherData.rainfall || 0) > 0
                       ? `${(weatherData.rainfall || 0).toFixed(1)} mm`
-                      : 'Sec'}
+                      : t('home.dry')}
                   </Text>
-                  <Text style={styles.heroStatLabel}>Précip.</Text>
+                  <Text style={styles.heroStatLabel}>{t('home.precip')}</Text>
                 </View>
               </View>
             )}
 
-            {hasActiveAlerts() && (
-              <TouchableOpacity style={styles.heroAlertBadge} onPress={showAlertsDetails}>
-                <Text style={styles.heroAlertText}>⚠️ Alerte météo active</Text>
-              </TouchableOpacity>
-            )}
           </View>
 
           {/* ══ LEVER / COUCHER DU SOLEIL ══ */}
@@ -1211,7 +1236,7 @@ const showAlertsDetails = () => {
                 <Text style={styles.sunriseSunsetEmoji}>🌅</Text>
                 <View>
                   <Text style={styles.sunriseSunsetTime}>{fmtSunTime(forecastDays[0]?.sunrise)}</Text>
-                  <Text style={styles.sunriseSunsetLabel}>Lever</Text>
+                  <Text style={styles.sunriseSunsetLabel}>{t('home.sunrise')}</Text>
                 </View>
               </View>
               <View style={styles.sunriseSunsetDivider} />
@@ -1220,11 +1245,11 @@ const showAlertsDetails = () => {
                   {(() => {
                     const rise = forecastDays[0]?.sunrise;
                     const set  = forecastDays[0]?.sunset;
-                    if (!rise || !set) return '-- h ensoleillement';
+                    if (!rise || !set) return t('home.sunlightFmt', { h: '--', m: '' });
                     const riseMin = parseInt(rise.slice(11,13))*60 + parseInt(rise.slice(14,16));
                     const setMin  = parseInt(set.slice(11,13))*60  + parseInt(set.slice(14,16));
                     const total   = setMin - riseMin;
-                    return `${Math.floor(total/60)}h${String(total%60).padStart(2,'0')} ensoleillement`;
+                    return t('home.sunlightFmt', { h: Math.floor(total/60), m: String(total%60).padStart(2,'0') });
                   })()}
                 </Text>
                 <Text style={styles.sunriseSunsetArc}>☀️</Text>
@@ -1234,7 +1259,7 @@ const showAlertsDetails = () => {
                 <Text style={styles.sunriseSunsetEmoji}>🌇</Text>
                 <View>
                   <Text style={styles.sunriseSunsetTime}>{fmtSunTime(forecastDays[0]?.sunset)}</Text>
-                  <Text style={styles.sunriseSunsetLabel}>Coucher</Text>
+                  <Text style={styles.sunriseSunsetLabel}>{t('home.sunset')}</Text>
                 </View>
               </View>
             </View>
@@ -1244,31 +1269,31 @@ const showAlertsDetails = () => {
           {weatherData && (
             <View style={styles.quickGrid}>
               <View style={styles.quickGridRow}>
-                <TouchableOpacity style={styles.quickCard} onPress={() => handleCardPress(1, '💨 Vent')} activeOpacity={0.7}>
+                <TouchableOpacity style={styles.quickCard} onPress={() => handleCardPress(1, t('home.cardWind'))} activeOpacity={0.7}>
                   <Text style={styles.quickCardEmoji}>💨</Text>
                   <Text style={styles.quickCardValue}>{convertWindSpeed(weatherData.wind_speed || 0, windUnit).toFixed(1)}</Text>
                   <Text style={styles.quickCardUnit}>{windUnit}</Text>
-                  <Text style={styles.quickCardLabel}>Vent {getCardinalDirection(weatherData.wind_direction || 0)}</Text>
+                  <Text style={styles.quickCardLabel}>{t('home.windLabel', { dir: getCardinalDirection(weatherData.wind_direction || 0) })}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.quickCard} onPress={() => handleCardPress(4, '☀️ UV')} activeOpacity={0.7}>
+                <TouchableOpacity style={styles.quickCard} onPress={() => handleCardPress(4, t('home.cardUV'))} activeOpacity={0.7}>
                   <Text style={styles.quickCardEmoji}>☀️</Text>
                   <Text style={styles.quickCardValue}>{(weatherData.uv_index || 0).toFixed(0)}</Text>
                   <Text style={styles.quickCardUnit}>UV</Text>
-                  <Text style={styles.quickCardLabel}>{getUVDescription(weatherData.uv_index || 0)}</Text>
+                  <Text style={styles.quickCardLabel}>{getUVDescription(weatherData.uv_index || 0, t)}</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.quickGridRow}>
-                <TouchableOpacity style={styles.quickCard} onPress={() => handleCardPress(3, '📊 Pression')} activeOpacity={0.7}>
+                <TouchableOpacity style={styles.quickCard} onPress={() => handleCardPress(3, t('home.cardPressure'))} activeOpacity={0.7}>
                   <Text style={styles.quickCardEmoji}>📊</Text>
                   <Text style={styles.quickCardValue}>{convertPressure(weatherData.pressure || 0, pressureUnit).toFixed(0)}</Text>
                   <Text style={styles.quickCardUnit}>{pressureUnit}</Text>
-                  <Text style={styles.quickCardLabel}>Pression</Text>
+                  <Text style={styles.quickCardLabel}>{t('home.pressure')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.quickCard} onPress={() => handleCardPress(6, '💧 Rosée')} activeOpacity={0.7}>
+                <TouchableOpacity style={styles.quickCard} onPress={() => handleCardPress(6, t('home.cardDewPoint'))} activeOpacity={0.7}>
                   <Text style={styles.quickCardEmoji}>🌡️</Text>
                   <Text style={styles.quickCardValue}>{convertTemperature(weatherData.dew_point || 0, useCelsius).toFixed(0)}°</Text>
                   <Text style={styles.quickCardUnit}>{useCelsius ? 'C' : 'F'}</Text>
-                  <Text style={styles.quickCardLabel}>Point rosée</Text>
+                  <Text style={styles.quickCardLabel}>{t('home.dewPointQuick')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1291,8 +1316,8 @@ const showAlertsDetails = () => {
             </Svg>
             <Text style={styles.rainMapCompactIcon}>🌧️</Text>
             <View style={styles.rainMapCompactText}>
-              <Text style={styles.rainMapCompactTitle}>Carte de pluie</Text>
-              <Text style={styles.rainMapCompactSub}>Radar en temps réel</Text>
+              <Text style={styles.rainMapCompactTitle}>{t('home.rainMap')}</Text>
+              <Text style={styles.rainMapCompactSub}>{t('home.rainMapSub')}</Text>
             </View>
             <Text style={styles.rainMapCompactArrow}>→</Text>
           </TouchableOpacity>
@@ -1300,7 +1325,7 @@ const showAlertsDetails = () => {
           {/* ══ DONNÉES DÉTAILLÉES ══ */}
           <View style={styles.detailCardsSection}>
             <View style={styles.detailCardsHeader}>
-              <Text style={styles.detailCardsTitle}>Données détaillées</Text>
+              <Text style={styles.detailCardsTitle}>{t('home.detailedData')}</Text>
               <View style={styles.scrollIndicators}>
                 <View style={[styles.scrollDot, activeSection === 0 && styles.scrollDotActive]} />
                 <View style={[styles.scrollDot, activeSection === 1 && styles.scrollDotActive]} />
@@ -1343,7 +1368,7 @@ const showAlertsDetails = () => {
             </ScrollView>
           </View>
           <View style={styles.forecastSection}>
-  <Text style={styles.forecastTitle}>☁️ Prévisions sur 10 jours</Text>
+  <Text style={styles.forecastTitle}>{t('home.forecast10')}</Text>
 
   <ScrollView
     horizontal
@@ -1358,8 +1383,8 @@ const showAlertsDetails = () => {
       const dt       = day.date ? new Date(day.date) : null;
       const DAY_FR   = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
       const dayLabel = !dt ? `J+${index}`
-        : index === 0 ? 'Auj.'
-        : index === 1 ? 'Dem.'
+        : index === 0 ? t('home.today')
+        : index === 1 ? t('home.tomorrow')
         : `${DAY_FR[dt.getDay()]}.${dt.getDate()}`;
       const wcode    = day.weathercode;
       const emoji    = wcode == null ? '…'
@@ -1394,7 +1419,7 @@ const showAlertsDetails = () => {
           ) : (
             <View style={styles.rainInfo}>
               <Text style={styles.rainIcon}>☀️</Text>
-              <Text style={[styles.rainPercent, { color: '#ffd600' }]}>Sec</Text>
+              <Text style={[styles.rainPercent, { color: '#ffd600' }]}>{t('home.dry')}</Text>
             </View>
           )}
           {rainProba && (
@@ -1410,13 +1435,13 @@ const showAlertsDetails = () => {
     onPress={() => router.push({
       pathname: '/forecastDetail',
       params: {
-        city: stationData ? (stationData.address || stationData.description || 'Localisation actuelle') : 'Localisation actuelle',
+        city: stationData ? (stationData.address || stationData.description || t('home.localLocation')) : t('home.localLocation'),
         lat: currentLocation.lat,
         lon: currentLocation.lon,
       }
     })}
   >
-    <Text style={styles.seeMoreButtonText}>Voir le tableau complet →</Text>
+    <Text style={styles.seeMoreButtonText}>{t('home.seeFullTable')}</Text>
   </TouchableOpacity>
 </View>
         </View>
@@ -1443,6 +1468,47 @@ const showAlertsDetails = () => {
 }
 
 const styles = StyleSheet.create({
+  // ── Bannière alerte critique ──
+  criticalBannerWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,59,48,0.92)',
+    overflow: 'hidden',
+  },
+  criticalBannerContent: {
+    padding: 14,
+    paddingRight: 8,
+  },
+  criticalBannerTitle: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  criticalBannerSub: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 6,
+  },
+  criticalBannerTap: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
+  criticalBannerX: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+  },
+  criticalBannerXText: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
   container: {
     flex: 1,
     backgroundColor: "#728eb1",

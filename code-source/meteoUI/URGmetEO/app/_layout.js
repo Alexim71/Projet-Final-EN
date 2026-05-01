@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { SettingsProvider, useSettings } from "../context/SettingsContext";
 import { AuthProvider } from "../context/AuthContext";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
-import "./locales/i18n";
+import i18n from "./locales/i18n";
 import * as Notifications from "expo-notifications";
 import { applyNotificationPrefs } from "./services/notificationService";
 
@@ -27,12 +27,19 @@ export default function RootLayout() {
 }
 
 function NavigationStackWrapper() {
-  const { darkMode, notifications } = useSettings();
+  const { darkMode, notifications, language } = useSettings();
   const router = useRouter();
   const routerRef = useRef(router);
   const notificationsRef = useRef(notifications);
   useEffect(() => { routerRef.current = router; }, [router]);
   useEffect(() => { notificationsRef.current = notifications; }, [notifications]);
+
+  // Synchronise la langue i18n avec le paramètre sauvegardé
+  useEffect(() => {
+    if (language && i18n.language !== language) {
+      i18n.changeLanguage(language);
+    }
+  }, [language]);
 
   useEffect(() => {
     // Replanifier pour le lendemain dès qu'une notification se déclenche
@@ -80,6 +87,7 @@ function NavigationStackWrapper() {
     <ThemeProvider value={darkMode ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="onboarding" />
         <Stack.Screen name="App" />
         <Stack.Screen name="home" />
         <Stack.Screen name="login" />
@@ -88,6 +96,7 @@ function NavigationStackWrapper() {
         <Stack.Screen name="rainMap" />
         <Stack.Screen name="settings"      options={{ headerShown: true }} />
         <Stack.Screen name="notifications" options={{ headerShown: true }} />
+        <Stack.Screen name="alertes"       options={{ headerShown: true }} />
         <Stack.Screen name="about"         options={{ headerShown: true }} />
         <Stack.Screen name="licence"       options={{ headerShown: true }} />
         <Stack.Screen name="privacy"       options={{ headerShown: true }} />

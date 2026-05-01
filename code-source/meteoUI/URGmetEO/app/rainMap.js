@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from 'react-i18next';
 import {
   ActivityIndicator,
   Dimensions,
@@ -45,6 +46,7 @@ function DepartmentMarker({ dept }) {
 export default function RainMap() {
   const params = useLocalSearchParams();
   const router = useRouter();
+  const { t } = useTranslation();
   
   // Valider les paramètres d'entrée
   const initialLat = parseFloat(params.lat);
@@ -285,7 +287,7 @@ export default function RainMap() {
           style={styles.legendHeader}
           onPress={() => setShowLegend(!showLegend)}
         >
-          <Text style={styles.legendTitle}>Détails par département · Intensités</Text>
+          <Text style={styles.legendTitle}>{t('rainMap.details')}</Text>
           <Text style={styles.legendToggle}>{showLegend ? '▲' : '▼'}</Text>
         </TouchableOpacity>
 
@@ -331,7 +333,7 @@ export default function RainMap() {
   // Rendu des contrôles de temps
   const renderTimeControls = () => (
     <View style={styles.timeControls}>
-      <Text style={styles.timeLabel}>Période de prévision</Text>
+      <Text style={styles.timeLabel}>{t('rainMap.forecastPeriod')}</Text>
       <View style={styles.timeButtonsRow}>
         {['current', '3h', '6h', '9h', '12h'].map((period) => (
           <TouchableOpacity
@@ -346,7 +348,7 @@ export default function RainMap() {
             }}
           >
             <Text style={[styles.timeButtonText, timeRange === period && styles.timeButtonTextActive]}>
-              {period === 'current' ? 'Actuel' : period}
+              {period === 'current' ? t('rainMap.current') : period}
             </Text>
           </TouchableOpacity>
         ))}
@@ -358,7 +360,7 @@ export default function RainMap() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#2196F3" />
-        <Text style={styles.loadingText}>Chargement de la carte de pluie...</Text>
+        <Text style={styles.loadingText}>{t('rainMap.loading')}</Text>
       </View>
     );
   }
@@ -367,14 +369,14 @@ export default function RainMap() {
     <View style={styles.container}>
       {/* En-tête */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Text style={styles.backButtonText}>← Retour</Text>
+          <Text style={styles.backButtonText}>{t('rainMap.back')}</Text>
         </TouchableOpacity>
-        
-        <Text style={styles.headerTitle}>Carte de pluie</Text>
+
+        <Text style={styles.headerTitle}>{t('rainMap.title')}</Text>
         
         <TouchableOpacity 
           style={styles.refreshButton}
@@ -508,9 +510,9 @@ export default function RainMap() {
       {departmentWeather.length > 0 && (
         <View style={styles.deptSummaryBar}>
           <Text style={styles.deptSummaryBarText}>
-            🌧️ {departmentWeather.filter(d => d.hasRain).length} sous la pluie
+            🌧️ {departmentWeather.filter(d => d.hasRain).length} {t('rainMap.underRain')}
             {'   '}
-            ☀️ {departmentWeather.filter(d => !d.hasRain).length} ensoleillé(s)
+            ☀️ {departmentWeather.filter(d => !d.hasRain).length} {t('rainMap.underSun')}
           </Text>
         </View>
       )}

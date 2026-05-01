@@ -7,7 +7,9 @@ const axios   = require('axios');
 const Station = require('../models/Station');
 const Data    = require('../models/Data');
 
-const DEMO_CODES = ['DEMO-PAP-01', 'DEMO-PAP-02', 'DEMO-PAP-03'];
+// DEMO-PAP-01 : synced avec données réelles Open-Meteo (niveau normal)
+// DEMO-PAP-02 / 03 : données fixes du seed (avertissement / critique — ne pas écraser)
+const DEMO_CODES = ['DEMO-PAP-01'];
 
 // Open-Meteo free API — no key required
 const OPEN_METEO_URL = 'https://api.open-meteo.com/v1/forecast';

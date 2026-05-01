@@ -55,61 +55,61 @@ const stations = [
 ];
 
 const dataPayloads = [
-  // Station 1 – Normal (température ~27°C, humidité modérée, vent léger)
+  // Station 1 – Normale (tous les paramètres sous les seuils d'avertissement)
   {
-    temperature: 27.4,
-    humidity: 62,
-    pressure: 1013.2,
-    rainfall: 0,
-    wind_speed: 3.8,      // m/s ≈ 14 km/h
+    temperature: 30.0,    // < 35°C  → normale
+    humidity: 65,         // < 80%   → normale
+    pressure: 1013.0,     // ≥ 1000  → normale
+    rainfall: 1.5,        // < 20 mm → normale
+    wind_speed: 2.8,      // m/s ≈ 10 km/h  < 50 → normale
     wind_direction: 112,
-    solar_radiation: 620,
-    uv_index: 6,
-    visibility: 14,
-    dew_point: 19.8,
+    solar_radiation: 580,
+    uv_index: 5,
+    visibility: 15,
+    dew_point: 21.0,
     battery_level: 92,
-    signal_strength: -62,
+    signal_strength: -61,
     device_status: 'ONLINE',
-    feels_like: 29.1,
-    heat_index: 29.5,
+    feels_like: 31.5,
+    heat_index: 32.0,
     source: 'SENSOR'
   },
-  // Station 2 – Avertissement (forte chaleur, pluie modérée, vent fort)
+  // Station 2 – Avertissement (tous les paramètres au seuil jaune)
   {
-    temperature: 36.8,
-    humidity: 84,
-    pressure: 1005.7,
-    rainfall: 18.4,
-    wind_speed: 11.2,     // m/s ≈ 40 km/h
+    temperature: 35.0,    // = 35°C  → avertissement
+    humidity: 82,         // ≥ 80%   → avertissement
+    pressure: 997.0,      // < 1000  → avertissement
+    rainfall: 22.0,       // ≥ 20 mm → avertissement
+    wind_speed: 14.0,     // m/s ≈ 50.4 km/h ≥ 50 → avertissement
     wind_direction: 245,
-    solar_radiation: 180,
-    uv_index: 9,
-    visibility: 6,
-    dew_point: 33.1,
-    battery_level: 74,
-    signal_strength: -75,
+    solar_radiation: 190,
+    uv_index: 8,
+    visibility: 7,
+    dew_point: 31.5,
+    battery_level: 73,
+    signal_strength: -74,
     device_status: 'ONLINE',
-    feels_like: 44.2,
-    heat_index: 46.0,
+    feels_like: 42.0,
+    heat_index: 43.5,
     source: 'SENSOR'
   },
-  // Station 3 – Critique (température extrême, pluie torrentielle, vent violent)
+  // Station 3 – Critique (tous les paramètres au seuil rouge)
   {
-    temperature: 42.5,
-    humidity: 91,
-    pressure: 995.3,
-    rainfall: 87.6,
-    wind_speed: 23.6,     // m/s ≈ 85 km/h (force ouragan Cat-1)
+    temperature: 40.0,    // = 40°C  → critique
+    humidity: 96,         // ≥ 95%   → critique
+    pressure: 985.0,      // < 990   → critique
+    rainfall: 55.0,       // ≥ 50 mm → critique
+    wind_speed: 25.0,     // m/s = 90 km/h ≥ 90 → critique
     wind_direction: 310,
-    solar_radiation: 30,
+    solar_radiation: 25,
     uv_index: 11,
-    visibility: 1.2,
-    dew_point: 40.8,
-    battery_level: 41,
-    signal_strength: -88,
+    visibility: 1.5,
+    dew_point: 39.0,
+    battery_level: 38,
+    signal_strength: -87,
     device_status: 'ONLINE',
-    feels_like: 58.0,
-    heat_index: 60.2,
+    feels_like: 55.0,
+    heat_index: 57.0,
     source: 'SENSOR'
   }
 ];
@@ -130,7 +130,11 @@ async function seed() {
     );
     console.log(`📍 Station "${station.code}" — ${station.description}`);
 
-    // Insert one data record with current timestamp
+    // Supprimer toutes les anciennes données pour cette station (évite que l'ancien enregistrement soit retourné)
+    const deleted = await Data.deleteMany({ station: station._id });
+    if (deleted.deletedCount > 0) console.log(`   🗑️  ${deleted.deletedCount} ancienne(s) donnée(s) supprimée(s)`);
+
+    // Insérer le nouvel enregistrement avec l'heure actuelle
     const now = new Date();
     await Data.create({
       station: station._id,

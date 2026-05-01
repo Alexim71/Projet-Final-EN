@@ -10,9 +10,11 @@ import {
   Alert,
   Linking,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import styles from "@/app/App.styles";
 import { useRouter } from "expo-router";
+import { ONBOARDING_KEY } from "./onboarding";
 
 const { height } = Dimensions.get("window");
 
@@ -22,9 +24,28 @@ export default function App() {
   const [showPermission, setShowPermission] = useState(false);
 
   useEffect(() => {
-    checkPermissionAndRedirect();
+    checkAndRoute();
+  }, []);
 
-    // Animation du panneau après 2 secondes
+  // Vérifie l'onboarding et la permission, puis route en conséquence
+  const checkAndRoute = async () => {
+    const onboardingDone = await AsyncStorage.getItem(ONBOARDING_KEY);
+
+    if (!onboardingDone) {
+      // Premier lancement → onboarding après le splash
+      setTimeout(() => router.replace("/onboarding"), 2000);
+      return;
+    }
+
+    // Utilisateur existant : vérifier la permission GPS
+    const { status } = await Location.getForegroundPermissionsAsync();
+    if (status === "granted") {
+      console.log("📍 Permission déjà accordée → Redirection");
+      router.replace("/home");
+      return;
+    }
+
+    // Permission non accordée → afficher le panneau existant
     setTimeout(() => {
       setShowPermission(true);
       Animated.timing(slideAnim, {
@@ -33,16 +54,6 @@ export default function App() {
         useNativeDriver: false,
       }).start();
     }, 2000);
-  }, []);
-
-  // 🔎 Vérifie si permission déjà accordée
-  const checkPermissionAndRedirect = async () => {
-    const { status } = await Location.getForegroundPermissionsAsync();
-
-    if (status === "granted") {
-      console.log("📍 Permission déjà accordée → Redirection");
-      router.replace("/home");
-    }
   };
 
   // 📍 Demande permission
