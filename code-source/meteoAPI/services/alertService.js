@@ -4,7 +4,7 @@ exports.checkWeatherAlerts = async (data) => {
   const alerts = [];
 
   // 1️⃣ Détection : Canicule
-  if (data.temperature && data.temperature > 35) {
+  if (data.temperature != null && data.temperature > 35) {
     alerts.push({
       type: 'CANICULE',
       message: `Température élevée (${data.temperature}°C) détectée`,
@@ -13,7 +13,7 @@ exports.checkWeatherAlerts = async (data) => {
   }
 
   // 2️⃣ Détection : Vent fort
-  if (data.windSpeed && data.windSpeed > 80) {
+  if (data.windSpeed != null && data.windSpeed > 80) {
     alerts.push({
       type: 'VENT_FORT',
       message: `Vent violent (${data.windSpeed} km/h) détecté`,
@@ -22,7 +22,7 @@ exports.checkWeatherAlerts = async (data) => {
   }
 
   // 3️⃣ Détection : Pression très basse (orage possible)
-  if (data.pressure && data.pressure < 1000) {
+  if (data.pressure != null && data.pressure < 1000) {
     alerts.push({
       type: 'PRESSION_BASSE',
       message: `Pression atmosphérique basse (${data.pressure} hPa)`,
@@ -31,7 +31,7 @@ exports.checkWeatherAlerts = async (data) => {
   }
 
   // 4️⃣ Détection : Forte pluie
-  if (data.rainfall && data.rainfall > 10) {
+  if (data.rainfall != null && data.rainfall > 10) {
     alerts.push({
       type: 'PLUIE_IMPORTANTE',
       message: `Précipitations fortes (${data.rainfall} mm)`,

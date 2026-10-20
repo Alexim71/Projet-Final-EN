@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const stationController = require('../controllers/stationController');
+const requireAuth = require('../middleware/requireAuth');
 
 // ✅ Liste des stations
 /**
@@ -22,6 +23,8 @@ router.get('/', stationController.getStations);
  * /api/stations:
  *   post:
  *     tags: [Station]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -50,7 +53,7 @@ router.get('/', stationController.getStations);
  *       400:
  *         description: Erreur lors de la création de la station
  */
-router.post('/', stationController.postStations);
+router.post('/', requireAuth, stationController.postStations);
 
 
 module.exports = router;

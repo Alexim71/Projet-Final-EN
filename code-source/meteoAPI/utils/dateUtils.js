@@ -17,6 +17,11 @@ exports.getTimeRange = (type) => {
       start.setDate(now.getDate() - 7);
       break;
 
+    case 'month':
+      start = new Date(now);
+      start.setMonth(now.getMonth() - 1);
+      break;
+
     case 'hour':
       // Période de la dernière heure
       start = new Date(now);
@@ -24,8 +29,7 @@ exports.getTimeRange = (type) => {
       break;
 
     default:
-      // Si aucun paramètre valide, retour depuis le début de la base
-      start = new Date(0);
+      throw new RangeError('Période invalide.');
   }
 
   return { start, end: new Date() };

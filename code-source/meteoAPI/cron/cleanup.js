@@ -10,7 +10,7 @@ cron.schedule("10 0 * * *", async () => {
 
   try {
     const result = await Data.deleteMany({
-      timestamp: { $lt: limitDate }
+      measured_at: { $lt: limitDate }
     });
 
     console.log(`✔️ ${result.deletedCount} enregistrements supprimés`);

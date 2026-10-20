@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const authCtrl = require('../controllers/authController');
+const rateLimit = require('../middleware/rateLimit');
 
+router.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 10 }));
 router.post('/register', authCtrl.register);
 router.post('/confirm-code', authCtrl.confirmCode);
 router.get('/confirm/:token', authCtrl.getConfirmationPage);
@@ -25,5 +27,4 @@ router.get('/', (req, res) => {
 });
 
 module.exports = router;
-
 

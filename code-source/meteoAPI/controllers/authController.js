@@ -4,34 +4,53 @@ const sendConfirmationEmail = require('../utils/mailer');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'urgmeteo_secret_change_in_prod';
 const JWT_EXPIRES = '7d';
+const CONFIRMATION_TTL_MS = 15 * 60 * 1000;
+const hashCode = code => crypto.createHash('sha256').update(code).digest('hex');
 
 exports.register = async (req, res) => {
   try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ message: "Email requis." });
+    const { email } = req.body || {};
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return res.status(400).json({ message: "Adresse email invalide." });
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      return res.status(503).json({ message: "Le service d'envoi d'email n'est pas configuré." });
+    }
 
-    const userExist = await User.findOne({ email });
+    const userExist = await User.findOne({ email: normalizedEmail });
 
     // Bloquer uniquement si le compte est déjà activé (mot de passe défini)
     if (userExist && userExist.activated) {
       return res.status(400).json({ message: "Email déjà utilisé." });
     }
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = crypto.randomInt(100000, 1000000).toString();
+    const confirmationToken = crypto.randomBytes(32).toString('hex');
+    const confirmationExpiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS);
 
     if (userExist && !userExist.activated) {
       // Compte existant mais non activé : renvoyer un nouveau code
-      userExist.tokenConfirmation = code;
+      userExist.tokenConfirmation = confirmationToken;
+      userExist.confirmationCodeHash = hashCode(code);
+      userExist.confirmationExpiresAt = confirmationExpiresAt;
+      userExist.confirmationAttempts = 0;
       await userExist.save();
-      await sendConfirmationEmail(email, code);
+      await sendConfirmationEmail(normalizedEmail, code);
     } else {
       // Nouveau compte
       const authorities = [{ _id: 'ROLE_USER' }];
-      const newUser = new User({ email, tokenConfirmation: code, authorities });
+      const newUser = new User({
+        email: normalizedEmail,
+        tokenConfirmation: confirmationToken,
+        confirmationCodeHash: hashCode(code),
+        confirmationExpiresAt,
+        confirmationAttempts: 0,
+        authorities
+      });
       await newUser.save();
-      await sendConfirmationEmail(email, code);
+      await sendConfirmationEmail(normalizedEmail, code);
     }
 
     res.status(201).json({ message: "Code envoyé. Vérifiez votre email." });
@@ -43,9 +62,10 @@ exports.register = async (req, res) => {
 
 exports.confirmCode = async (req, res) => {
   try {
-    const { email, code, motDePasse } = req.body;
+    const { email, code, motDePasse } = req.body || {};
 
-    if (!email || !code || !motDePasse)
+    if (typeof email !== 'string' || typeof code !== 'string' ||
+        typeof motDePasse !== 'string' || !email || !code || !motDePasse)
       return res.status(400).json({ message: "Email, code et mot de passe requis." });
 
     if (motDePasse.length < 6)
@@ -54,12 +74,28 @@ exports.confirmCode = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) return res.status(404).json({ message: "Utilisateur non trouvé." });
     if (user.activated) return res.status(400).json({ message: "Compte déjà activé." });
-    if (user.tokenConfirmation !== code.trim())
+    if (!user.confirmationExpiresAt || user.confirmationExpiresAt <= new Date()) {
+      return res.status(400).json({ message: "Le code a expiré. Demandez un nouveau code." });
+    }
+    if ((user.confirmationAttempts || 0) >= 5) {
+      return res.status(429).json({ message: "Trop de tentatives. Demandez un nouveau code." });
+    }
+    const submittedHash = hashCode(code.trim());
+    const expectedHash = user.confirmationCodeHash || '';
+    const isValidCode = expectedHash.length === submittedHash.length &&
+      crypto.timingSafeEqual(Buffer.from(expectedHash), Buffer.from(submittedHash));
+    if (!isValidCode) {
+      user.confirmationAttempts = (user.confirmationAttempts || 0) + 1;
+      await user.save();
       return res.status(400).json({ message: "Code incorrect." });
+    }
 
     user.password = await bcrypt.hash(motDePasse, 10);
     user.activated = true;
     user.tokenConfirmation = null;
+    user.confirmationCodeHash = null;
+    user.confirmationExpiresAt = null;
+    user.confirmationAttempts = 0;
     await user.save();
 
     res.json({ message: "Compte confirmé ! Vous pouvez vous connecter." });
@@ -76,7 +112,7 @@ exports.getConfirmationPage = async (req, res) => {
     const { token } = req.params;
     const user = await User.findOne({ tokenConfirmation: token });
 
-    if (!user) {
+    if (!user || !user.confirmationExpiresAt || user.confirmationExpiresAt <= new Date()) {
       return res.status(400).send(`
         <!DOCTYPE html><html><head><meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -177,20 +213,25 @@ exports.getConfirmationPage = async (req, res) => {
 exports.confirmAccount = async (req, res) => {
   try {
     const { token } = req.params;
-    const { motDePasse1, motDePasse2 } = req.body;
+    const { motDePasse1, motDePasse2 } = req.body || {};
 
-    if (!motDePasse1 || motDePasse1.length < 6)
+    if (typeof motDePasse1 !== 'string' || motDePasse1.length < 6)
       return res.status(400).json({ message: "Le mot de passe doit contenir au moins 6 caractères." });
 
-    if (motDePasse1 !== motDePasse2)
+    if (typeof motDePasse2 !== 'string' || motDePasse1 !== motDePasse2)
       return res.status(400).json({ message: "Les mots de passe ne correspondent pas." });
 
     const user = await User.findOne({ tokenConfirmation: token });
-    if (!user) return res.status(400).json({ message: "Token invalide." });
+    if (!user || !user.confirmationExpiresAt || user.confirmationExpiresAt <= new Date()) {
+      return res.status(400).json({ message: "Token invalide ou expiré." });
+    }
 
     user.password = await bcrypt.hash(motDePasse1, 10);
     user.activated = true;
     user.tokenConfirmation = null;
+    user.confirmationCodeHash = null;
+    user.confirmationExpiresAt = null;
+    user.confirmationAttempts = 0;
     await user.save();
 
     res.json({ message: "Compte confirmé ! Tu peux maintenant te connecter." });
@@ -202,11 +243,11 @@ exports.confirmAccount = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { email, motDePasse } = req.body;
-    if (!email || !motDePasse)
+    const { email, motDePasse } = req.body || {};
+    if (typeof email !== 'string' || typeof motDePasse !== 'string' || !email || !motDePasse)
       return res.status(400).json({ message: "Email et mot de passe requis." });
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
     if (!user) return res.status(404).json({ message: "Utilisateur non trouvé." });
     if (!user.activated) return res.status(403).json({ message: "Compte non confirmé." });
 
@@ -215,7 +256,7 @@ exports.login = async (req, res) => {
 
     const token = jwt.sign(
       { id: user._id, email: user.email, roles: user.authorities.map(a => a._id) },
-      JWT_SECRET,
+      process.env.JWT_SECRET,
       { expiresIn: JWT_EXPIRES }
     );
 
@@ -229,4 +270,3 @@ exports.login = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur." });
   }
 };
-

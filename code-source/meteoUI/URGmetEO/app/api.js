@@ -9,6 +9,7 @@ const getBaseURL = () => {
 };
 
 const BASE_URL = getBaseURL();
+export const API_BASE_URL = BASE_URL;
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,

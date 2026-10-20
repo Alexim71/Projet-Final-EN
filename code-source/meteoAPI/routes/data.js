@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const dataController = require('../controllers/dataController');
+const requireAuth = require('../middleware/requireAuth');
 
 //  GET – Liste toutes les mesures
 /**
@@ -22,6 +23,8 @@ router.get('/', dataController.getDatas);
  * /api/data:
  *   post: 
  *     tags: [Data]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -29,28 +32,32 @@ router.get('/', dataController.getDatas);
  *           schema:
  *             type: object
  *             properties:
- *               deviceUUID:
+ *               stationUUID:
  *                 type: string
+ *                 example: DEMO-PAP-01
  *               temperature:
  *                 type: number
  *               humidity:
  *                 type: number
  *               pressure:
  *                 type: number
- *               windSpeed:
+ *               wind_speed:
  *                 type: number
  *               rainfall:
  *                 type: number
- *               timestamp:
+ *               measured_at:
  *                 type: string
  *                 format: date-time
+ *               source:
+ *                 type: string
+ *                 enum: [SENSOR, MANUAL, IMPORT]
  *     responses:
  *       201:
  *         description: Mesure ajoutée + alertes générées
  *       400:
  *         description: Erreur dans les données envoyées
  */
-router.post('/', dataController.postDatas);
+router.post('/', requireAuth, dataController.postDatas);
 
 
 

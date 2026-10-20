@@ -1,8 +1,11 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
 const Station = require('../models/Station');
 
 async function migrate() {
-  await mongoose.connect('mongodb://127.0.0.1:27017/meteo_db');
+  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+  if (!mongoUri) throw new Error('MONGO_URI (ou MONGODB_URI) doit être configuré.');
+  await mongoose.connect(mongoUri);
 
   const stations = await Station.find({});
 

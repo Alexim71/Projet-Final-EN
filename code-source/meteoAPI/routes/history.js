@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Data = require('../models/Data');
 const paginate = require('../utils/pagination');
+const findStation = require('../utils/stationLookup');
 
 // ----------------------------------------------
 // 1️⃣ HISTORIQUE 24 HEURES
@@ -10,6 +11,8 @@ router.get('/24h/:uuid', async (req, res) => {
   const uuid = req.params.uuid;
 
   try {
+    const station = await findStation(uuid);
+    if (!station) return res.status(404).json({ message: 'Station introuvable.' });
     const since = new Date();
     since.setHours(since.getHours() - 24);
 
@@ -18,17 +21,17 @@ router.get('/24h/:uuid', async (req, res) => {
     const pageSize = parseInt(req.query.pageSize) || 10; 
 
     const result = await Data.aggregate([
-      { $match: { deviceUUID: uuid, timestamp: { $gte: since } } },
+      { $match: { station: station._id, measured_at: { $gte: since } } },
       {
         $group: {
           _id: {
-            hour: { $hour: "$timestamp" },
-            day: { $dayOfMonth: "$timestamp" },
-            month: { $month: "$timestamp" }
+            hour: { $hour: "$measured_at" },
+            day: { $dayOfMonth: "$measured_at" },
+            month: { $month: "$measured_at" }
           },
           avgTemp: { $avg: "$temperature" },
           avgHumidity: { $avg: "$humidity" },
-          avgWindSpeed: { $avg: "$windSpeed" },
+          avgWindSpeed: { $avg: "$wind_speed" },
           totalRain: { $sum: "$rainfall" }
         }
       },
@@ -40,7 +43,7 @@ router.get('/24h/:uuid', async (req, res) => {
       hour: `${r._id.hour.toString().padStart(2, '0')}:00`,
       temperature: Number(r.avgTemp.toFixed(1)),
       humidity: Math.round(r.avgHumidity),
-      windSpeed: Math.round(r.avgWindSpeed),
+      windSpeed: Math.round(r.avgWindSpeed * 3.6),
       rainfall: r.totalRain
     }));
 
@@ -63,6 +66,8 @@ router.get('/7d/:uuid', async (req, res) => {
   const uuid = req.params.uuid;
  
   try {
+    const station = await findStation(uuid);
+    if (!station) return res.status(404).json({ message: 'Station introuvable.' });
     const since = new Date();
     since.setDate(since.getDate() - 7);
 
@@ -71,13 +76,13 @@ router.get('/7d/:uuid', async (req, res) => {
     const pageSize = parseInt(req.query.pageSize) || 10; 
 
     const result = await Data.aggregate([
-      { $match: { deviceUUID: uuid, timestamp: { $gte: since } } },
+      { $match: { station: station._id, measured_at: { $gte: since } } },
       {
         $group: {
           _id: {
-            year: { $year: "$timestamp" },
-            month: { $month: "$timestamp" },
-            day: { $dayOfMonth: "$timestamp" }
+            year: { $year: "$measured_at" },
+            month: { $month: "$measured_at" },
+            day: { $dayOfMonth: "$measured_at" }
           },
           minTemp: { $min: "$temperature" },
           maxTemp: { $max: "$temperature" },

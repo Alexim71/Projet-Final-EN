@@ -39,6 +39,16 @@ const userSchema = new mongoose.Schema({
   tokenConfirmation: { 
     type: String 
   },
+  confirmationCodeHash: {
+    type: String
+  },
+  confirmationExpiresAt: {
+    type: Date
+  },
+  confirmationAttempts: {
+    type: Number,
+    default: 0
+  },
   activated: {
     type: Boolean,
     default: false
@@ -77,5 +87,4 @@ const userSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model('User', userSchema,'jhi_user');
-
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Data = require('../models/Data');
+const findStation = require('../utils/stationLookup');
 
 // 🔹 Route : /api/weather/weatherDashboard/:uuid
 /**
@@ -23,9 +24,10 @@ const Data = require('../models/Data');
 router.get('/:uuid', async (req, res) => {
   try {
     const uuid = req.params.uuid;
+    const station = await findStation(uuid);
+    if (!station) return res.status(404).json({ message: 'Station introuvable.' });
 
-    // --- 1. Météo actuelle (dernière mesure)
-    const current = await Data.findOne({ deviceUUID: uuid }).sort({ timestamp: -1 });
+    const current = await Data.findOne({ station: station._id }).sort({ measured_at: -1 }).lean();
 
     // --- 2. Statistiques du jour
     const today = new Date();
@@ -34,8 +36,8 @@ router.get('/:uuid', async (req, res) => {
     const summary = await Data.aggregate([
       {
         $match: {
-          deviceUUID: uuid,
-          timestamp: { $gte: today }
+          station: station._id,
+          measured_at: { $gte: today }
         }
       },
       {
@@ -46,26 +48,36 @@ router.get('/:uuid', async (req, res) => {
           maxTemp: { $max: "$temperature" },
           avgHumidity: { $avg: "$humidity" },
           avgPressure: { $avg: "$pressure" },
-          avgWindSpeed: { $avg: "$windSpeed" },
+          avgWindSpeed: { $avg: "$wind_speed" },
           totalRainfall: { $sum: "$rainfall" }
         }
       }
     ]);
 
     // --- 3. Historique (10 dernières mesures)
-    const history = await Data.find({ deviceUUID: uuid })
-      .sort({ timestamp: -1 })
+    const history = await Data.find({ station: station._id })
+      .sort({ measured_at: -1 })
       .limit(10);
 
-    // --- 4. Réponse consolidée
+    if (current) {
+      current.timestamp = current.measured_at;
+      if (current.wind_speed !== undefined) current.windSpeed = current.wind_speed * 3.6;
+    }
+    if (summary[0]?.avgWindSpeed != null) summary[0].avgWindSpeed *= 3.6;
+    history.forEach(item => {
+      item.timestamp = item.measured_at;
+      if (item.wind_speed !== undefined) item.windSpeed = item.wind_speed * 3.6;
+    });
+
     res.json({
-      stationUUID: uuid,
+      stationUUID: station.uuid || station.code,
       currentWeather: current || {},
       todaySummary: summary[0] || {},
       recentHistory: history || []
     });
 
   } catch (err) {
+    console.error('[weatherDashboard]', err);
     res.status(500).json({ error: err.message });
   }
 });

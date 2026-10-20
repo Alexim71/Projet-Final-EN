@@ -1,21 +1,20 @@
 const express = require('express');
 const router = express.Router();
 
-const Station = require('../models/Station');
 const Data = require('../models/Data');
 const Alert = require('../models/Alert');
+const findStation = require('../utils/stationLookup');
 
 // UTIL: Calcul prévisions simples (min/max/avg par jour)
-const getForecast = async (uuid) => {
-
+const getForecast = async (stationId) => {
   return await Data.aggregate([
-    { $match: { deviceUUID: uuid } },
+    { $match: { station: stationId } },
     {
       $group: {
         _id: {
-          year: { $year: "$timestamp" },
-          month: { $month: "$timestamp" },
-          day: { $dayOfMonth: "$timestamp" }
+          year: { $year: "$measured_at" },
+          month: { $month: "$measured_at" },
+          day: { $dayOfMonth: "$measured_at" }
         },
         minTemp: { $min: "$temperature" },
         maxTemp: { $max: "$temperature" },
@@ -54,21 +53,17 @@ router.get('/:uuid', async (req, res) => {
   const uuid = req.params.uuid;
 
   try {
-
-    // 1️⃣ Station (info statique)
-    const station = await Station.findOne({ uuid });
+    const station = await findStation(uuid);
     if (!station) {
       return res.status(404).json({ message: "Station introuvable" });
     }
 
-    // 2️⃣ Météo actuelle
-    const current = await Data.findOne({ deviceUUID: uuid })
-      .sort({ timestamp: -1 })
+    const current = await Data.findOne({ station: station._id })
+      .sort({ measured_at: -1 })
       .lean();
 
-    // 3️⃣ Résumé météo (min, max, moyenne, pluie totale)
     const summary = await Data.aggregate([
-      { $match: { deviceUUID: uuid } },
+      { $match: { station: station._id } },
       {
         $group: {
           _id: null,
@@ -77,27 +72,29 @@ router.get('/:uuid', async (req, res) => {
           maxTemp: { $max: "$temperature" },
           avgHumidity: { $avg: "$humidity" },
           avgPressure: { $avg: "$pressure" },
-          avgWindSpeed: { $avg: "$windSpeed" },
+          avgWindSpeed: { $avg: "$wind_speed" },
           totalRainfall: { $sum: "$rainfall" }
         }
       }
     ]);
 
-    // 4️⃣ Prévisions (générées par agrégations)
-    const forecast = await getForecast(uuid);
-
-    // 5️⃣ Alertes récentes (24 heures)
+    const forecast = await getForecast(station._id);
     const since = new Date();
     since.setHours(since.getHours() - 24);
 
     const alerts = await Alert.find({
-      deviceUUID: uuid,
+      deviceUUID: station.uuid || station.code,
       createdAt: { $gte: since }
     })
       .sort({ createdAt: -1 })
       .lean();
 
-    // 📦 Réponse complète envoyée au mobile
+    if (current) {
+      current.timestamp = current.measured_at;
+      if (current.wind_speed !== undefined) current.windSpeed = current.wind_speed * 3.6;
+    }
+    if (summary[0]?.avgWindSpeed != null) summary[0].avgWindSpeed *= 3.6;
+
     return res.json({
       station,
       current,
@@ -107,7 +104,7 @@ router.get('/:uuid', async (req, res) => {
     });
 
   } catch (err) {
-    console.error("🔥 ERREUR API /weather/home :", err);
+    console.error("Erreur API /weather/home :", err);
     return res.status(500).json({ error: "Erreur interne du serveur" });
   }
 

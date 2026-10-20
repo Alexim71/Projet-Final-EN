@@ -26,7 +26,7 @@ module.exports = async function sendConfirmationEmail(to, code) {
             ${code}
           </span>
         </div>
-        <p>Entrez ce code dans l'application URGmetEO pour créer votre mot de passe.</p>
+        <p>Entrez ce code dans l'application URGmetEO pour créer votre mot de passe. Le code expire après 15 minutes.</p>
         <p style="color:#888; font-size:12px;">Si vous n'avez pas créé de compte, ignorez cet email.</p>
       </div>
     `,

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Data = require('../models/Data');
 const paginate = require('../utils/pagination');
+const findStation = require('../utils/stationLookup');
 
 // -------------------------------------
 // 1️⃣ PRÉVISIONS COURT TERME (24 heures)
@@ -18,13 +19,11 @@ router.get('/24h/:uuid', async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const pageSize = parseInt(req.query.pageSize) || 10;
 
-    const mongoose = require('mongoose');
-    const stationId = mongoose.Types.ObjectId.isValid(uuid)
-      ? new mongoose.Types.ObjectId(uuid)
-      : null;
+    const station = await findStation(uuid);
+    if (!station) return res.status(404).json({ message: 'Station introuvable.' });
 
     const details24h = await Data.aggregate([
-      { $match: { station: stationId, measured_at: { $gte: since } } },
+      { $match: { station: station._id, measured_at: { $gte: since } } },
       {
         $group: {
           _id: {
@@ -71,13 +70,11 @@ router.get('/7d/:uuid', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
 
-    const mongoose = require('mongoose');
-    const stationId = mongoose.Types.ObjectId.isValid(uuid)
-      ? new mongoose.Types.ObjectId(uuid)
-      : null;
+    const station = await findStation(uuid);
+    if (!station) return res.status(404).json({ message: 'Station introuvable.' });
 
     const forecast7dRaw = await Data.aggregate([
-      { $match: { station: stationId, measured_at: { $gte: sevenDaysAgo } } },
+      { $match: { station: station._id, measured_at: { $gte: sevenDaysAgo } } },
       {
         $group: {
           _id: {
@@ -154,13 +151,11 @@ router.get('/:uuid', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
 
-    const mongoose = require('mongoose');
-    const stationId = mongoose.Types.ObjectId.isValid(uuid)
-      ? new mongoose.Types.ObjectId(uuid)
-      : null;
+    const station = await findStation(uuid);
+    if (!station) return res.status(404).json({ message: 'Station introuvable.' });
 
     const forecast24hRaw = await Data.aggregate([
-      { $match: { station: stationId, measured_at: { $gte: since24h } } },
+      { $match: { station: station._id, measured_at: { $gte: since24h } } },
       {
         $group: {
           _id: { hour: { $hour: "$measured_at" } },
@@ -179,7 +174,7 @@ router.get('/:uuid', async (req, res) => {
     // Génération 7 jours
     const since7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const forecast7dRaw = await Data.aggregate([
-      { $match: { station: stationId, measured_at: { $gte: since7d } } },
+      { $match: { station: station._id, measured_at: { $gte: since7d } } },
       {
         $group: {
           _id: {

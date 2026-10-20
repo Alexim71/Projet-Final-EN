@@ -7,7 +7,7 @@ const mongoose = require('mongoose');
 const Station = require('../models/Station');
 const Data    = require('../models/Data');
 
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/meteo_db2';
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
 
 const stations = [
   {
@@ -115,6 +115,7 @@ const dataPayloads = [
 ];
 
 async function seed() {
+  if (!MONGO_URI) throw new Error('MONGO_URI (ou MONGODB_URI) doit être configuré.');
   await mongoose.connect(MONGO_URI);
   console.log('✅ MongoDB connecté');
 

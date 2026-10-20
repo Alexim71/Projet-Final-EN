@@ -21,10 +21,19 @@ const options = {
         email: "contact@urgeo.ht"
       }
     },
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT"
+        }
+      }
+    },
     servers: [
       {
-        url: "http://localhost:3000",
-        description: "Serveur local"
+        url: process.env.SERVER_URL || "http://localhost:3000",
+        description: process.env.SERVER_URL ? "Serveur configuré" : "Serveur local"
       }
     ]
   },

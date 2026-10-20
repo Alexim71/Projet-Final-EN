@@ -2,41 +2,46 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const helmet = require("helmet");
 const authRoutes = require('./routes/auth');
 const swaggerDocs = require("./swagger");
-
-
-// Charger les crons
-require("./cron/cleanup");
-require("./cron/syncWeather");
 const geoRoutes = require('./routes/geo.routes');
 const rainRoutes = require('./routes/rain.routes');
 
-
-
 const app = express();
-app.use(express.json()); // Pour lire du JSON
-app.use(cors());
+app.disable('x-powered-by');
+if (process.env.TRUST_PROXY) {
+  const trustProxyHops = Number(process.env.TRUST_PROXY);
+  if (!Number.isInteger(trustProxyHops) || trustProxyHops < 1) {
+    throw new Error('TRUST_PROXY doit être un nombre entier positif.');
+  }
+  app.set('trust proxy', trustProxyHops);
+}
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      "script-src": ["'self'", "'unsafe-inline'"],
+      "style-src": ["'self'", "'unsafe-inline'"]
+    }
+  }
+}));
+app.use(express.json({ limit: '100kb' }));
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:8081,http://localhost:19006')
+ .split(',')
+ .map(origin => origin.trim())
+ .filter(Boolean);
+app.use(cors({
+ origin(origin, callback) {
+   if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+   return callback(null, false);
+ }
+}));
 app.use('/api/auth', authRoutes);
 app.use('/api/geo', geoRoutes);
 app.use('/api/rain', rainRoutes);
 
-
-
-//  Connexion à MongoDB
-//mongoose.connect("mongodb://localhost:27017/meteoDB", {
-mongoose.connect("mongodb://localhost:27017/meteo_db2", {
-
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
-.then(() => console.log("✅ Connecté à MongoDB"))
-.catch(err => console.error("❌ Erreur MongoDB :", err));
-
-
-//  Route test
 app.get("/", (req, res) => {
-    res.send("API fonctionne ✅");
+   res.send("API fonctionne ✅");
 });
 
 const deviceRoutes = require('./routes/device');
@@ -64,25 +69,56 @@ const historyRoutes = require('./routes/history');
 app.use('/api/weather/history', historyRoutes);
 
 
-//  Lancer le serveur
-const os = require("os");
-
-const getLocalIP = () => {
-  const interfaces = os.networkInterfaces();
-  for (let iface of Object.values(interfaces)) {
-    for (let i of iface) {
-      if (i.family === "IPv4" && !i.internal) {
-        return i.address;
-      }
-    }
-  }
-  return "localhost";
-};
-
-const PORT = 3000;
-
-app.listen(PORT, "0.0.0.0", () => {
-  const ip = getLocalIP();
-  console.log(`🚀 Serveur démarré sur http://${ip}:${PORT}`);
-  swaggerDocs(app);
+app.get('/health', (req, res) => {
+  res.status(mongoose.connection.readyState === 1 ? 200 : 503).json({
+    status: mongoose.connection.readyState === 1 ? 'ok' : 'unavailable'
+  });
 });
+
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ message: 'La requête dépasse la taille autorisée.' });
+  }
+  if (err instanceof SyntaxError && Object.prototype.hasOwnProperty.call(err, 'body')) {
+    return res.status(400).json({ message: 'Le JSON envoyé est invalide.' });
+  }
+  console.error('[request]', err);
+  return res.status(500).json({ message: 'Erreur interne du serveur.' });
+});
+
+async function start() {
+  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI;
+  if (!mongoUri) throw new Error('MONGO_URI (ou MONGODB_URI) est requis.');
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    throw new Error('JWT_SECRET est requis et doit contenir au moins 32 caractères.');
+  }
+
+  await mongoose.connect(mongoUri);
+  console.log('Connecté à MongoDB');
+  require("./cron/cleanup");
+  require("./cron/syncWeather");
+  swaggerDocs(app);
+
+  const port = Number(process.env.PORT) || 3000;
+  const server = app.listen(port, "0.0.0.0", () => {
+    console.log(`Serveur démarré sur le port ${port}`);
+  });
+
+  const shutdown = async () => {
+    server.close(async () => {
+      await mongoose.disconnect();
+      process.exit(0);
+    });
+  };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
+}
+
+if (require.main === module) {
+  start().catch(err => {
+    console.error('Impossible de démarrer le serveur:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = { app, start };

@@ -1,10 +1,11 @@
 import NetInfo from '@react-native-community/netinfo';
 import axios from 'axios';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { API_BASE_URL } from '../api';
 
 // Configuration par défaut
 const DEFAULT_CONFIG = {
-  baseURL: 'http://100.65.155.98:3000',
+  baseURL: API_BASE_URL,
   endpoint: '/api/geo/nearest',
   pollInterval: 300000, // 5 minutes par défaut
   initialPoll: true,

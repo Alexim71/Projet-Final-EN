@@ -13,6 +13,10 @@ const mongoose = require('mongoose');
 
 const StationSchema = new mongoose.Schema(
   {
+    uuid: {
+      type: String,
+      index: true
+    },
     code: {
       type: String,
       required: true,
@@ -137,4 +141,3 @@ const StationSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model('Station', StationSchema);
-
