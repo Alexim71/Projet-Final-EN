@@ -52,3 +52,54 @@ test('le middleware limite les tentatives répétées', () => {
   assert.equal(secondResponse.statusCode, 429);
   assert.ok(secondResponse.headers['Retry-After']);
 });
+
+test('classe les mesures selon le niveau de voyant IoT attendu', () => {
+  const { classifyWeather } = require('../services/weatherSeverity');
+
+  assert.deepEqual(classifyWeather({ temperature: 30, humidity: 65 }), {
+    level: 'normal',
+    led: 'green'
+  });
+  assert.deepEqual(classifyWeather({ wind_speed: 14 }), {
+    level: 'warning',
+    led: 'yellow'
+  });
+  assert.deepEqual(classifyWeather({ pressure: 989 }), {
+    level: 'critical',
+    led: 'red'
+  });
+  assert.deepEqual(classifyWeather({ temperature: 40, humidity: 65 }), {
+    level: 'critical',
+    led: 'red'
+  });
+});
+
+test('le point d’entrée IoT exige son jeton d’appareil dédié', () => {
+  const requireDeviceToken = require('../middleware/requireDeviceToken');
+  const previousToken = process.env.IOT_DEVICE_TOKEN;
+  process.env.IOT_DEVICE_TOKEN = 'test-device-token';
+  const createResponse = () => ({
+    statusCode: 200,
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; }
+  });
+
+  try {
+    let nextCalls = 0;
+    const denied = createResponse();
+    requireDeviceToken({ get: () => 'wrong-token' }, denied, () => { nextCalls += 1; });
+    assert.equal(denied.statusCode, 401);
+
+    const accepted = createResponse();
+    requireDeviceToken(
+      { get: () => 'test-device-token' },
+      accepted,
+      () => { nextCalls += 1; }
+    );
+    assert.equal(accepted.statusCode, 200);
+    assert.equal(nextCalls, 1);
+  } finally {
+    if (previousToken === undefined) delete process.env.IOT_DEVICE_TOKEN;
+    else process.env.IOT_DEVICE_TOKEN = previousToken;
+  }
+});

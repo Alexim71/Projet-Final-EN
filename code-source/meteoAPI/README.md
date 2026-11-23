@@ -33,6 +33,28 @@ Le point de contrôle `GET /health` indique si l'API peut joindre MongoDB. Les �
 
 Pour que l'application mobile utilise le serveur hébergé, définissez `EXPO_PUBLIC_API_URL` à son URL HTTPS publique lors de la compilation Expo.
 
+## Intégration de démonstration ESP32
+
+Le backend fournit les routes `/api/iot/demo-state` et `/api/iot/measurements`
+pour le prototype ESP32. Configurez `IOT_DEVICE_TOKEN` avec un secret aléatoire
+propre à l'appareil et `IOT_STATION_CODE` avec le code d'une station existante.
+Ne placez jamais ces valeurs dans le code mobile ni dans le dépôt. La route de
+mesure utilise un en-tête `X-Device-Token` distinct du JWT des utilisateurs.
+
+Un utilisateur mobile connecté peut publier le scénario de démonstration choisi
+avec `POST /api/iot/demo-state`; l'ESP32 peut ensuite lire ce scénario avec
+`GET /api/iot/demo-state`. Le modèle d'état est conservé dans la collection
+MongoDB `iot_state`. La route `POST /api/iot/measurements` accepte les mesures
+du dispositif et renvoie le niveau d'alerte ainsi que la couleur de LED. Le
+sketch Arduino de démonstration et son câblage sont décrits dans
+`code-source/esp32/URGmetEO_ESP32/README.md`.
+
+Cette première version est conçue pour un seul appareil de test et utilise les
+seuils par défaut de l'application (température, humidité, pression, pluie et
+vent). Les autorisations par appareil, la gestion de plusieurs dispositifs et
+l'ajout de capteurs autres que le BME280 nécessitent une extension avant une
+utilisation à grande échelle.
+
 ## Migration des anciennes mesures
 
 Avant le déploiement, faites une sauvegarde de MongoDB. Si les anciens documents de la collection `data` contiennent `deviceUUID`, `timestamp` et `windSpeed`, lancez une seule fois :

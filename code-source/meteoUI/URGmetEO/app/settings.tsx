@@ -16,6 +16,7 @@ import {
 import { apiClient } from "./api";
 import { Stack } from "expo-router";
 import { useSettings } from "../context/SettingsContext";
+import { useAuth } from "../context/AuthContext";
 import Card from "./components/Settings/Card";
 import SegmentedControl from "./components/Settings/SegmentedControl";
 import { useTranslation } from "react-i18next";
@@ -49,6 +50,7 @@ export default function SettingsScreen() {
     demoStationCode,
     updateSettings,
   } = useSettings();
+  const { token } = useAuth();
 
   useEffect(() => {
     if (!demoMode) return;
@@ -63,6 +65,21 @@ export default function SettingsScreen() {
       })
       .finally(() => setLoadingDemoStations(false));
   }, [demoMode]);
+
+  useEffect(() => {
+    const isDemoMode = demoMode === true;
+    if (!token || (isDemoMode && !demoStationCode)) return;
+    apiClient.post(
+      '/api/iot/demo-state',
+      { demoMode: isDemoMode, stationCode: isDemoMode ? demoStationCode : null },
+      { headers: { Authorization: `Bearer ${token}` } }
+    ).catch(error => {
+      console.warn(
+        '[IoT demo sync]',
+        error instanceof Error ? error.message : 'Synchronisation impossible.'
+      );
+    });
+  }, [demoMode, demoStationCode, token]);
 
   const { t, i18n } = useTranslation();
 

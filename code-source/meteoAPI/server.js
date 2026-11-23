@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth');
 const swaggerDocs = require("./swagger");
 const geoRoutes = require('./routes/geo.routes');
 const rainRoutes = require('./routes/rain.routes');
+const iotRoutes = require('./routes/iot');
 
 const app = express();
 app.disable('x-powered-by');
@@ -39,6 +40,7 @@ app.use(cors({
 app.use('/api/auth', authRoutes);
 app.use('/api/geo', geoRoutes);
 app.use('/api/rain', rainRoutes);
+app.use('/api/iot', iotRoutes);
 
 app.get("/", (req, res) => {
    res.send("API fonctionne ✅");
